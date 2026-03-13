@@ -37,6 +37,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 import gc
 from dataclasses import replace,fields
+from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 
 #from jaxmarl.wrappers.baselines import SMAXLogWrapper
 #from jaxmarl.environments.smax import map_name_to_scenario, HeuristicEnemySMAX
@@ -567,7 +568,16 @@ def make_train(config):
             eval_env_params=eval_env.default_params # type: ignore
         else:
             eval_env_params = None
-        # env_params=jax.device_put(env_params)
+        # Multi-device setup
+        devices = jax.devices()
+        n_devices = len(devices)
+        mesh = Mesh(np.array(devices), axis_names=('batch',))
+        batch_sharding = NamedSharding(mesh, P('batch'))
+        replicated_sharding = NamedSharding(mesh, P())
+        assert config["NUM_ENVS"] % n_devices == 0, \
+            f"NUM_ENVS ({config['NUM_ENVS']}) must be divisible by number of devices ({n_devices})"
+        print(f"Multi-device: {n_devices} device(s) detected, sharding {config['NUM_ENVS']} envs across them")
+
         obsv, env_state = jax.vmap(env.reset, in_axes=(0,None))(reset_rng,env_params)
         # TRAIN LOOP
         
@@ -1073,6 +1083,24 @@ def make_train(config):
             return (runner_state, update_steps), metrics
 
         rng, _rng = jax.random.split(rng)
+
+        # Shard batch-dimension data across devices, replicate params/rng
+        def shard_batch(x):
+            return jax.device_put(x, batch_sharding)
+        def replicate(x):
+            return jax.device_put(x, replicated_sharding)
+
+        env_state = jax.tree.map(shard_batch, env_state)
+        obsv = jax.tree.map(shard_batch, obsv)
+        hstates = [shard_batch(h) for h in hstates]
+        init_dones_agents = [shard_batch(d) for d in init_dones_agents]
+
+        train_states = [jax.tree.map(replicate, ts) for ts in train_states]
+        env_params = jax.tree.map(replicate, env_params)
+        if eval_env_params is not None:
+            eval_env_params = jax.tree.map(replicate, eval_env_params)
+        _rng = replicate(_rng)
+
         runner_state = (
             train_states,
             env_state,
@@ -1106,6 +1134,11 @@ def make_train(config):
             #     jax.block_until_ready((runner_state,updates,metrics))
             #     jax.profiler.stop_trace()
             print(f"Update step {updates} completed")
+            if i == 0 and n_devices > 1:
+                sample_param = jax.tree.leaves(runner_state[0][0].params)[0]
+                sample_obs = jax.tree.leaves(runner_state[2])[0]
+                print(f"Param sharding: {sample_param.sharding}")
+                print(f"Obs sharding: {sample_obs.sharding}")
             if config["CALC_EVAL"]:
                 ckpt = {
                     'model': runner_state[0],  # train_states

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"d:\\\\UWA\\\\Honours\\\\Honours-Project\" -Recurse -Force | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"d:\\\\UWA\\\\Honours\\\\Honours-Project\\\\\", \"\"\\) } | Sort-Object)",
+      "Bash(git -C \"d:\\\\UWA\\\\Honours\\\\Honours-Project\" log --oneline -10)",
+      "Bash(git -C \"d:\\\\UWA\\\\Honours\\\\Honours-Project\" remote -v)"
+    ]
+  }
+}

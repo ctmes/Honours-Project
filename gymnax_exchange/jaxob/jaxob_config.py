@@ -203,6 +203,39 @@ class Execution_EnvironmentConfig():
 
 
 @dataclass(frozen=True)
+class SpoofingAgentConfig:
+    """Observation-space adversary. Perturbs MM's visible LOB depth; never submits real LOB orders."""
+    short_name: str = "ADV"
+    debug_mode: bool = False
+    normalize: bool = True
+    observation_space: str = "adversarial_lob"  # required by MultiAgentConfig.__post_init__ loop
+
+    # Action: 10-dim continuous — injectable volume at top-n_spoof_levels bid + ask levels
+    n_spoof_levels: int = 5          # 5 bid + 5 ask = 10-dim action
+    budget_per_episode: float = 500.0
+    c_fill: float = 0.001            # accidental fill cost per unit
+    c_reg: float = 0.0005            # regulatory penalty per unit volume spoofed
+
+    # Zero LOB participation
+    num_messages_by_agent: int = 0
+    num_action_messages_by_agent: int = 0
+
+
+@dataclass(frozen=True)
+class AdversarialMMConfig(MarketMaking_EnvironmentConfig):
+    """Market-maker config extended for adversarial co-training."""
+    use_detection_head: bool = True
+    detection_loss_coef: float = 0.5
+    regime_conditioning: bool = True
+    prev_detection_in_obs: bool = True
+    pcgrad_enabled: bool = True
+    # observation_space should be set to "adversarial_lob" when using this config
+
+    def __post_init__(self):
+        super().__post_init__()
+
+
+@dataclass(frozen=True)
 class World_EnvironmentConfig(JAXLOB_Configuration):
     n_data_msg_per_step: int = 1
     window_selector: int = -1 # -1 means random window
@@ -246,12 +279,17 @@ class MultiAgentConfig():
         # Since the class is frozen, we need to use object.__setattr__ to modify n_actions
         # Number of messages includes action messages and cancel messages!
         for agent_type, config in self.dict_of_agents_configs.items():
-            if "message" in config.observation_space:
+            obs_space = getattr(config, 'observation_space', '')
+            if "message" in obs_space:
                 object.__setattr__(self.world_config, 'any_message_obs_space', True)
 
 
-CONFIG_OBJECT_DICT = {"MarketMaking": MarketMaking_EnvironmentConfig,
-                      "Execution": Execution_EnvironmentConfig}
+CONFIG_OBJECT_DICT = {
+    "MarketMaking": MarketMaking_EnvironmentConfig,
+    "Execution": Execution_EnvironmentConfig,
+    "Spoofing": SpoofingAgentConfig,
+    "AdversarialMM": AdversarialMMConfig,
+}
 if __name__ == "__main__":
     mac = MultiAgentConfig(
         dict_of_agents_configs={"MarketMaking":MarketMaking_EnvironmentConfig(

@@ -116,9 +116,27 @@ class MMEnvParams():
 @struct.dataclass
 class ExecEnvParams():
     trader_id: chex.Array
-    task_size: chex.Array 
+    task_size: chex.Array
     reward_lambda: chex.Array
     time_delay_obs_act: chex.Array
     normalize: chex.Array
+
+
+########################################################################################
+# Adversarial co-training structs
+########################################################################################
+
+@struct.dataclass
+class SpoofingAgentState():
+    """State for the observation-space spoofing adversary."""
+    budget_remaining: float      # injectable volume budget left this episode
+    volume_injected: float       # cumulative injected volume this episode
+    prev_mm_reward: float        # MM's reward from last step (for adversary reward computation)
+    prev_detection_prob: float   # MM's detection head output last step; updated by training loop
+
+
+@struct.dataclass
+class SpoofingAgentParams():
+    budget_per_episode: chex.Array  # shape (n_agents,)
 
 

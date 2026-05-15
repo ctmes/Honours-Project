@@ -1,0 +1,62 @@
+# Adversarial co-training: AttackAwarePolicyNet (MM) + AdversaryNet (Spoofing)
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 64
+"NUM_STEPS": 6400
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 5e8
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999999999, 0.99]
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42
+
+# Adversarial-specific
+"FREEZE_ALTERNATION": 10        # number of updates per phase before switching
+"DETECTION_LOSS_COEF": 0.5     # weight of BCE detection loss in MM update
+"PCGRAD_ENABLED": true
+"REGIME_LABELS_PATH": "data/regime_labels.json"
+"WINDOW_TO_DATE_PATH": "data/window_to_date.json"
+
+# Env config
+"ENV_CONFIG": "config/env_configs/adversarial_mm.json"
+
+# Data periods
+"TimePeriod": "2024"
+"EvalTimePeriod": "2024_Dec"
+"CALC_EVAL": false
+"Timing": false
+
+# WandB
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v0_AdversarialMM"
+"WANDB_MODE": "online"
+
+SWEEP_PARAMETERS:
+    SEED:
+      values: [42]
+    AGENT_CONFIGS:
+      parameters:
+        AdversarialMM:
+          parameters:
+            inventoryPnL_eta:
+              values: [0.6]
+            inventoryPnL_gamma:
+              values: [0.5]
+            rebate_bps:
+              values: [0.15]
+        Spoofing:
+          parameters:
+            budget_per_episode:
+              values: [500.0]
+            c_reg:
+              values: [0.0005]

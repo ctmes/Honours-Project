@@ -23,6 +23,7 @@ jax.config.update("jax_enable_x64", False)
 
 from gymnax_exchange.jaxen.mm_env import MarketMakingAgent
 from gymnax_exchange.jaxen.exec_env import ExecutionAgent
+from gymnax_exchange.jaxen.spoofing_agent import SpoofingAgent
 from gymnax_exchange.jaxen.base_env import BaseLOBEnv
 from gymnax_exchange.jaxen.from_JAXMARL.multi_agent_env import MultiAgentEnv
 #from gymnax_exchange.jaxen.from_JAXMARL.spaces import Box, MultiDiscrete, Discrete
@@ -33,6 +34,8 @@ from gymnax_exchange.jaxen.StatesandParams import MultiAgentState, MultiAgentPar
 from gymnax_exchange.jaxob import JaxOrderBookArrays as job
 from gymnax_exchange.jaxob.jaxob_config import MarketMaking_EnvironmentConfig
 from gymnax_exchange.jaxob.jaxob_config import Execution_EnvironmentConfig
+from gymnax_exchange.jaxob.jaxob_config import SpoofingAgentConfig
+from gymnax_exchange.jaxob.jaxob_config import AdversarialMMConfig
 from gymnax_exchange.jaxob.jaxob_config import MultiAgentConfig
 from gymnax_exchange.jaxob.jaxob_config import World_EnvironmentConfig
 
@@ -71,12 +74,17 @@ class MARLEnv(MultiAgentEnv):
         for agent_type_index, (agent_type, agent_config) in enumerate(self.multi_agent_config.dict_of_agents_configs.items()):
             self.list_of_agents_configs.append(agent_config)  # Store the config for later use in default_params
             self.type_names.append(agent_config.short_name)
-            if isinstance(agent_config, MarketMaking_EnvironmentConfig):
+            if isinstance(agent_config, AdversarialMMConfig):
+                # Must come before MarketMaking_EnvironmentConfig since it's a subclass
+                self.instance_list.append(MarketMakingAgent(cfg=agent_config, world_config=self.multi_agent_config.world_config))
+            elif isinstance(agent_config, SpoofingAgentConfig):
+                self.instance_list.append(SpoofingAgent(cfg=agent_config, world_config=self.multi_agent_config.world_config))
+            elif isinstance(agent_config, MarketMaking_EnvironmentConfig):
                 self.instance_list.append(MarketMakingAgent(cfg=agent_config, world_config=self.multi_agent_config.world_config))
             elif isinstance(agent_config, Execution_EnvironmentConfig):
                 self.instance_list.append(ExecutionAgent(cfg=agent_config, world_config=self.multi_agent_config.world_config))
             else:
-                raise ValueError(f"Invalid agent type: {i}")
+                raise ValueError(f"Invalid agent type: {type(agent_config)}")
         
 
         self.action_spaces = [self.instance_list[i].action_space() for i in range(len(self.instance_list))]

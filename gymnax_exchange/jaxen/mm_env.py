@@ -3166,6 +3166,55 @@ class MarketMakingAgent():
         obs = jax.tree.map(lambda x, m, s: (x - m) / s, obs, means, stds)
         return obs
 
+    def get_adversarial_observation(
+        self,
+        world_state,
+        agent_state,
+        agent_param,
+        perturbed_l2: jax.Array,      # shape (40,) — pre-computed by AdversarialMARLEnv
+        regime: jax.Array,            # scalar 0.0 or 1.0
+        prev_detection_prob: jax.Array,  # scalar in [0, 1]
+        normalize: bool = True,
+    ) -> jax.Array:
+        """
+        Construct 45-dim adversarial LOB observation for the market maker.
+        Called by AdversarialMARLEnv.step_env — NOT via the standard vmap path.
+
+        Layout:
+            perturbed_l2        40  [ask_p_k, ask_v_k, bid_p_k, bid_v_k] x10
+            inventory            1  (normalised)
+            time_remaining       1  (normalised)
+            OFI                  1  (order flow imbalance)
+            prev_detection_prob  1
+            regime               1
+        """
+        # Normalise L2: prices by 1e6, volumes by 1e4
+        l2_norm = perturbed_l2 / jnp.array(
+            [1e6, 1e4, 1e6, 1e4] * 10, dtype=jnp.float32
+        )
+
+        # Inventory (normalised)
+        inventory_norm = agent_state.inventory / 10.0
+
+        # Time remaining (normalised)
+        time = world_state.time[0] + world_state.time[1] / 1e9
+        time_elapsed = time - (world_state.init_time[0] + world_state.init_time[1] / 1e9)
+        if self.world_config.ep_type == "fixed_time":
+            time_remaining_norm = (self.world_config.episode_time - time_elapsed) / self.world_config.episode_time
+        else:
+            time_remaining_norm = (world_state.max_steps_in_episode - world_state.step_counter) / jnp.maximum(world_state.max_steps_in_episode, 1)
+
+        # OFI: (best_bid_vol - best_ask_vol) / (sum + eps)
+        best_bid_vol = world_state.best_bids[-1, 1].astype(jnp.float32)
+        best_ask_vol = world_state.best_asks[-1, 1].astype(jnp.float32)
+        ofi = (best_bid_vol - best_ask_vol) / (best_bid_vol + best_ask_vol + 1e-8)
+
+        return jnp.concatenate([
+            l2_norm,
+            jnp.array([inventory_norm, time_remaining_norm, ofi,
+                       prev_detection_prob, regime], dtype=jnp.float32),
+        ])
+
 
     def action_space(self) -> spaces.Box:
         
@@ -3194,7 +3243,10 @@ class MarketMakingAgent():
     #FIXME: Obsevation space is a single array with hard-coded shape (based on get_obs function): make this better.
     def observation_space(self):
         """Observation space of the environment."""
-        if self.cfg.observation_space =="engineered":
+        if self.cfg.observation_space == "adversarial_lob":
+            # 40 L2 + inventory + time_remaining + OFI + prev_detection_prob + regime
+            return spaces.Box(-1000, 1000, (45,), dtype=jnp.float32)
+        elif self.cfg.observation_space =="engineered":
             if self.world_config.ep_type == "fixed_time":
              return spaces.Box(-1000, 1000, (10,), dtype=jnp.float32)
             elif self.world_config.ep_type == "fixed_steps":

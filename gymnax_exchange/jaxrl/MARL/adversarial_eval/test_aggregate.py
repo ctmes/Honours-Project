@@ -6,7 +6,7 @@ Runnable directly:  python test_aggregate.py
 import math
 import numpy as np
 
-from aggregate import (
+from gymnax_exchange.jaxrl.MARL.adversarial_eval.aggregate import (
     summarize_seeds, compare_configs, progression_gate, format_comparison_table,
 )
 

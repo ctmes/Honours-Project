@@ -9,11 +9,13 @@ so the core is validated with no JAX, no env, and no trained checkpoints.
 import math
 import numpy as np
 
-from metrics import (
+from gymnax_exchange.jaxrl.MARL.adversarial_eval.metrics import (
     sharpe_ratio, sortino_ratio, cvar, quote_displacement,
     peak_inventory_excursion, detection_auroc,
 )
-from stats import cohens_d_paired, bootstrap_ci, paired_comparison
+from gymnax_exchange.jaxrl.MARL.adversarial_eval.stats import (
+    cohens_d_paired, bootstrap_ci, paired_comparison,
+)
 
 TOL = 1e-9
 _passed = 0

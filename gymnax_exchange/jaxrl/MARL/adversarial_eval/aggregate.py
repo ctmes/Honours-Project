@@ -27,7 +27,9 @@ from typing import Mapping, Sequence
 
 import numpy as np
 
-from stats import paired_comparison, ComparisonResult
+from gymnax_exchange.jaxrl.MARL.adversarial_eval.stats import (
+    paired_comparison, ComparisonResult,
+)
 
 
 def summarize_seeds(per_metric: Mapping[str, Sequence[float]]) -> dict:

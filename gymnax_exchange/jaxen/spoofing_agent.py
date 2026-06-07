@@ -79,6 +79,8 @@ class SpoofingAgent:
             volume_injected=jnp.zeros(()),
             prev_mm_reward=jnp.zeros(()),
             prev_detection_prob=jnp.zeros(()),
+            # Random initial telegraph phase for per-episode diversity; evolved in step_env.
+            attack_active=(jax.random.uniform(key) < 0.5).astype(jnp.float32),
         )
         obs = self._build_obs(world_state, state)
         return obs, state
@@ -87,18 +89,54 @@ class SpoofingAgent:
     # Messages — adversary never submits LOB orders
     # ------------------------------------------------------------------
 
+    def action_to_injection(
+        self,
+        action: jax.Array,          # shape (10,), raw network samples
+        world_state: WorldState,
+        budget_remaining: jax.Array,  # scalar
+        gate: jax.Array = 1.0,        # telegraph attack gate (1.0 = attack window, 0.0 = clean)
+    ) -> jax.Array:
+        """
+        Map a raw adversary action to per-level injected volumes (shape (10,):
+        indices 0..4 = bid levels, 5..9 = ask levels).
+
+        Injected volume = gate * clip(action, 0, 1) * inject_mult * best-quote depth (per side),
+        so the action is a multiple of best-quote depth (proposal §3.2) rather than a flat
+        share count, and the telegraph gate forces zero injection during clean spans.
+        The total is then proportionally scaled to respect budget_remaining.
+
+        Pure function of (action, world_state, budget_remaining, gate) so AdversarialMARLEnv can
+        call it with the same pre-step inputs and obtain an injection identical to the one
+        used here for budget/cost tracking.
+        """
+        a = jnp.clip(action, 0.0, 1.0) * gate
+        n = self.cfg.n_spoof_levels
+        best_bid_depth = world_state.best_bids[-1, 1].astype(jnp.float32)
+        best_ask_depth = world_state.best_asks[-1, 1].astype(jnp.float32)
+        bid_vol = a[:n] * self.cfg.inject_mult * best_bid_depth
+        ask_vol = a[n:] * self.cfg.inject_mult * best_ask_depth
+        volumes = jnp.concatenate([bid_vol, ask_vol])
+        total = jnp.sum(volumes)
+        scale = jnp.where(
+            total > budget_remaining,
+            budget_remaining / jnp.maximum(total, 1e-8),
+            1.0,
+        )
+        return volumes * scale
+
     def get_messages(
         self,
-        action: jax.Array,          # shape (10,), values in [0, 1]
+        action: jax.Array,          # shape (10,), raw network samples
         world_state: WorldState,
         agent_state: SpoofingAgentState,
         agent_params: SpoofingAgentParams,
     ) -> Tuple[jax.Array, jax.Array, dict]:
-        # Scale action to [0, budget_per_level] and clip to remaining budget
-        budget_per_level = agent_state.budget_remaining / jnp.maximum(
-            self.cfg.n_spoof_levels, 1
+        # Depth-scaled, budget-respecting, telegraph-gated per-level injection
+        # (shared with AdversarialMARLEnv so perturbation == budget/cost tracking).
+        clipped_action = self.action_to_injection(
+            action, world_state, agent_state.budget_remaining,
+            gate=agent_state.attack_active,
         )
-        clipped_action = jnp.clip(action, 0.0, budget_per_level)
         volume_this_step = jnp.sum(clipped_action)
 
         empty_action = jnp.zeros((0, 8), dtype=jnp.int32)
@@ -160,6 +198,8 @@ class SpoofingAgent:
             prev_mm_reward=extras.get("mm_reward_this_step", agent_state.prev_mm_reward),
             # prev_detection_prob is set by the training loop after each step, not here
             prev_detection_prob=agent_state.prev_detection_prob,
+            # attack_active is evolved (telegraph) in AdversarialMARLEnv.step_env; preserve here
+            attack_active=agent_state.attack_active,
         )
         done = jnp.array(False)
         info = {

@@ -1,0 +1,71 @@
+LR:
+- 0.0003
+- 0.0003
+NUM_ENVS: 64
+NUM_STEPS: 6400
+GRU_HIDDEN_DIM: 256
+FC_DIM_SIZE: 256
+TOTAL_TIMESTEPS: 500000000.0
+UPDATE_EPOCHS: 4
+NUM_MINIBATCHES: 4
+GAMMA:
+- 0.999999999
+- 0.99
+GAE_LAMBDA:
+- 0.85
+- 0.95
+CLIP_EPS: 0.2
+SCALE_CLIP_EPS:
+- false
+- false
+ENT_COEF:
+- 0.01
+- 0.01
+VF_COEF:
+- 0.5
+- 0.5
+MAX_GRAD_NORM:
+- 0.5
+- 0.5
+ANNEAL_LR:
+- true
+- true
+NUM_AGENTS_PER_TYPE:
+- 1
+- 1
+SEED: 42
+FREEZE_ALTERNATION: 10
+DETECTION_LOSS_COEF: 0.5
+PCGRAD_ENABLED: true
+REGIME_LABELS_PATH: ''
+WINDOW_TO_DATE_PATH: ''
+ENV_CONFIG: config/env_configs/adversarial_mm.json
+TimePeriod: 2022_small
+ENTITY: your-wandb-entity
+PROJECT: v0_AdversarialMM
+WANDB_MODE: disabled
+SWEEP_PARAMETERS:
+  SEED:
+    values:
+    - 42
+  AGENT_CONFIGS:
+    parameters:
+      AdversarialMM:
+        parameters:
+          inventoryPnL_eta:
+            values:
+            - 0.6
+          inventoryPnL_gamma:
+            values:
+            - 0.5
+          rebate_bps:
+            values:
+            - 0.15
+      Spoofing:
+        parameters:
+          budget_per_episode:
+            values:
+            - 500.0
+          c_reg:
+            values:
+            - 0.0005

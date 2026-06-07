@@ -2779,11 +2779,14 @@ class MarketMakingAgent():
                                        old_mid_price=old_mid_price, 
                                        lob_state_before=lob_state_before) 
         elif self.cfg.observation_space == "basic":
-            return self._get_obs_basic(world_state=world_state, 
+            return self._get_obs_basic(world_state=world_state,
                                        agent_state=agent_state,
                                        agent_param=agent_param,
                                        normalize=normalize,
                                        flatten=flatten)
+        elif self.cfg.observation_space == "adversarial_lob":
+            # AdversarialMARLEnv replaces this with get_adversarial_observation after reset/step.
+            return jnp.zeros(45, dtype=jnp.float32)
         else:
             raise ValueError("Invalid observation_space specified.")
 

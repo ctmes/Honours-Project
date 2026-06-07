@@ -282,7 +282,8 @@ def make_train(config: dict):
             )(rng_step, env_state, actions, env_params)
 
             # Update prev_detection_prob in env_state from MM's det_prob this step
-            mm_det = jnp.mean(det_probs[mm_idx])   # scalar: mean over actors
+            # det_probs[mm_idx] shape (1, NUM_ENVS) → (NUM_ENVS, 1) to match adv state field
+            mm_det = det_probs[mm_idx][0, :, None]
             old_adv_s = env_state.agent_states[adv_idx]
             new_adv_s = old_adv_s.replace(prev_detection_prob=mm_det)
             new_agent_states = list(env_state.agent_states)
@@ -405,7 +406,9 @@ def make_train(config: dict):
                         )
                         return detect_coef * bce, bce
 
-                    grads_ppo, aux_ppo = jax.grad(_loss_ppo, has_aux=True)(ts.params)
+                    (ppo_loss, aux_ppo), grads_ppo = jax.value_and_grad(
+                        _loss_ppo, has_aux=True
+                    )(ts.params)
                     grads_bce, aux_bce = jax.grad(_loss_bce, has_aux=True)(ts.params)
 
                     if pcgrad_on:
@@ -414,7 +417,7 @@ def make_train(config: dict):
                         merged = jax.tree.map(lambda a, b: a + b, grads_ppo, grads_bce)
 
                     ts = ts.apply_gradients(grads=merged)
-                    ppo_loss, (vl, al, ent, ratio, kl, cf) = aux_ppo
+                    vl, al, ent, ratio, kl, cf = aux_ppo
                     bce_raw = aux_bce
                     return ts, (ppo_loss, vl, al, ent, ratio, kl, cf, bce_raw)
 
@@ -536,7 +539,7 @@ def make_train(config: dict):
 
         @jax.jit
         def _get_last_val(train_state, hstate, last_obs_i, last_done_i, actor_i):
-            last_obs_b = batchify(last_obs_i, actor_i)
+            last_obs_b = last_obs_i.reshape((last_obs_i.shape[0], -1))
             ac_in = (last_obs_b[jnp.newaxis, :], last_done_i[jnp.newaxis, :])
             _, _, last_val, _ = train_state.apply_fn(
                 train_state.params, hstate, ac_in
@@ -548,9 +551,13 @@ def make_train(config: dict):
 
         # ---- Checkpoint setup ----------------------------------------------
         agent_type_names = list(env.type_names)
+        _run_name = (
+            "local_run" if (config["WANDB_MODE"] == "disabled" or run is None)
+            else (run.name if run.name else run.id)
+        )
         checkpoint_dir = (
             f'{config["world_config"]["alphatradePath"]}/checkpoints/MARLCheckpoints'
-            f'/{config["PROJECT"]}/{(run.name if run.name else run.id) if run else "GENERIC_RUN"}'
+            f'/{config["PROJECT"]}/{_run_name}'
         )
         orbax_checkpointer = oxcp.PyTreeCheckpointer()
         options = oxcp.CheckpointManagerOptions(
@@ -559,6 +566,29 @@ def make_train(config: dict):
         checkpoint_manager = oxcp.CheckpointManager(
             checkpoint_dir, orbax_checkpointer, options
         )
+
+        # ---- Resume from checkpoint if one exists --------------------------
+        start_update_i = 0
+        latest_step = checkpoint_manager.latest_step()
+        if latest_step is not None and latest_step < config["NUM_UPDATES"]:
+            print(f"Resuming from checkpoint: update {latest_step}/{config['NUM_UPDATES']}")
+            # Restore target must match the saved structure ({"model", "metrics"}),
+            # otherwise orbax rejects the tree mismatch.
+            restored = checkpoint_manager.restore(
+                latest_step,
+                items={
+                    "model": train_states,
+                    "metrics": {"avg_reward": [0.0 for _ in train_states]},
+                },
+            )
+            train_states = restored["model"]
+            start_update_i = latest_step
+            print(f"  Will continue from update {start_update_i + 1}")
+        elif latest_step is not None:
+            print(
+                f"Existing checkpoint at update {latest_step} >= NUM_UPDATES "
+                f"{config['NUM_UPDATES']}; ignoring it and starting fresh."
+            )
 
         # ---- Main training loop (Python-level) ----------------------------
         runner_state = (
@@ -570,7 +600,7 @@ def make_train(config: dict):
             jax.random.PRNGKey(config["SEED"] + 1),
         )
 
-        for update_i in range(config["NUM_UPDATES"]):
+        for update_i in range(start_update_i, config["NUM_UPDATES"]):
             phase = (update_i // freeze_n) % 2   # 0 = update adv, 1 = update MM
             print(f"Update {update_i + 1}/{config['NUM_UPDATES']}  phase={'adv' if phase==0 else 'mm'}")
 
@@ -672,6 +702,22 @@ def make_train(config: dict):
                 for agent_index in range(len(traj_batch)):
                     agent_name = agent_type_names[agent_index]
                     print(f"  avg_reward_{agent_name}: {logging_dict.get(f'agent_{agent_name}/avg_reward', 'N/A'):.4f}")
+
+                if loss_mm is not None:
+                    mm_name = agent_type_names[mm_idx]
+                    print(
+                        f"  MM ppo_loss: {logging_dict[f'agent_{mm_name}/ppo_loss']:.4f}  "
+                        f"value_loss: {logging_dict[f'agent_{mm_name}/value_loss']:.4f}  "
+                        f"entropy: {logging_dict[f'agent_{mm_name}/entropy']:.4f}  "
+                        f"bce_loss: {logging_dict[f'agent_{mm_name}/bce_loss']:.4f}  "
+                        f"adv_label_rate: {logging_dict[f'agent_{mm_name}/avg_adv_label']:.3f}"
+                    )
+                if loss_adv is not None:
+                    adv_name = agent_type_names[adv_idx]
+                    print(
+                        f"  ADV total_loss: {logging_dict[f'agent_{adv_name}/total_loss']:.4f}  "
+                        f"value_loss: {logging_dict[f'agent_{adv_name}/value_loss']:.4f}"
+                    )
 
             _log(update_i, phase, traj_batch, loss_mm, loss_adv, run)
 

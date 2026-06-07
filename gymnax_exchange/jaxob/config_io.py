@@ -8,10 +8,12 @@ from typing import Dict, Any, Union
 from dataclasses import asdict, fields
 from gymnax_exchange.jaxob.jaxob_config import (
     MultiAgentConfig,
-    World_EnvironmentConfig, 
+    World_EnvironmentConfig,
     MarketMaking_EnvironmentConfig,
     Execution_EnvironmentConfig,
-    JAXLOB_Configuration
+    JAXLOB_Configuration,
+    AdversarialMMConfig,
+    SpoofingAgentConfig,
 )
 
 
@@ -79,8 +81,11 @@ def _dict_to_multiagent_config(config_dict: Dict[str, Any]) -> MultiAgentConfig:
             dict_of_agents_configs[agent_type] = _dict_to_marketmaking_config(agent_config_dict)
         elif agent_type == "Execution":
             dict_of_agents_configs[agent_type] = _dict_to_execution_config(agent_config_dict)
+        elif agent_type == "AdversarialMM":
+            dict_of_agents_configs[agent_type] = _dict_to_adversarial_mm_config(agent_config_dict)
+        elif agent_type == "Spoofing":
+            dict_of_agents_configs[agent_type] = _dict_to_spoofing_config(agent_config_dict)
         else:
-            # For unknown agent types, try to determine based on fields
             dict_of_agents_configs[agent_type] = _auto_detect_agent_config(agent_config_dict)
     
     # Handle number_of_agents_per_type
@@ -139,6 +144,18 @@ def _dict_to_execution_config(config_dict: Dict[str, Any]) -> Execution_Environm
         kwargs[field.name] = config_dict.get(field.name, getattr(default_config, field.name))
     
     return Execution_EnvironmentConfig(**kwargs)
+
+
+def _dict_to_adversarial_mm_config(config_dict: Dict[str, Any]) -> AdversarialMMConfig:
+    default_config = AdversarialMMConfig()
+    kwargs = {f.name: config_dict.get(f.name, getattr(default_config, f.name)) for f in fields(AdversarialMMConfig)}
+    return AdversarialMMConfig(**kwargs)
+
+
+def _dict_to_spoofing_config(config_dict: Dict[str, Any]) -> SpoofingAgentConfig:
+    default_config = SpoofingAgentConfig()
+    kwargs = {f.name: config_dict.get(f.name, getattr(default_config, f.name)) for f in fields(SpoofingAgentConfig)}
+    return SpoofingAgentConfig(**kwargs)
 
 
 def _auto_detect_agent_config(config_dict: Dict[str, Any]) -> Union[MarketMaking_EnvironmentConfig, Execution_EnvironmentConfig]:

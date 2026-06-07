@@ -24,22 +24,19 @@
 "FREEZE_ALTERNATION": 10        # number of updates per phase before switching
 "DETECTION_LOSS_COEF": 0.5     # weight of BCE detection loss in MM update
 "PCGRAD_ENABLED": true
-"REGIME_LABELS_PATH": "data/regime_labels.json"
-"WINDOW_TO_DATE_PATH": "data/window_to_date.json"
+"REGIME_LABELS_PATH": ""
+"WINDOW_TO_DATE_PATH": ""
 
 # Env config
 "ENV_CONFIG": "config/env_configs/adversarial_mm.json"
 
 # Data periods
-"TimePeriod": "2024"
-"EvalTimePeriod": "2024_Dec"
-"CALC_EVAL": false
-"Timing": false
+"TimePeriod": "2022_small"
 
 # WandB
 "ENTITY": "your-wandb-entity"
 "PROJECT": "v0_AdversarialMM"
-"WANDB_MODE": "online"
+"WANDB_MODE": "disabled"
 
 SWEEP_PARAMETERS:
     SEED:

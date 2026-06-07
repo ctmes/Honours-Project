@@ -212,9 +212,19 @@ class SpoofingAgentConfig:
 
     # Action: 10-dim continuous — injectable volume at top-n_spoof_levels bid + ask levels
     n_spoof_levels: int = 5          # 5 bid + 5 ask = 10-dim action
+    # Injected volume per level = clip(action, 0, 1) * inject_mult * best-quote depth (per side).
+    # Action is therefore a multiple of best-quote depth (proposal §3.2), making the
+    # perturbation a realistic proportion of visible depth rather than a flat share count.
+    inject_mult: float = 2.0
+    # Within-episode attack scheduling (telegraph process): the adversary's injection is
+    # gated ON/OFF in bursts so the detection head sees both attack-on and attack-off steps.
+    # Per step: if OFF, turn ON w.p. attack_on_prob; if ON, turn OFF w.p. attack_off_prob.
+    # Defaults (~0.1 each) give ~10-step bursts and roughly balanced labels over a 64-step episode.
+    attack_on_prob: float = 0.1
+    attack_off_prob: float = 0.1
     budget_per_episode: float = 500.0
-    c_fill: float = 0.001            # accidental fill cost per unit
-    c_reg: float = 0.0005            # regulatory penalty per unit volume spoofed
+    c_fill: float = 0.001            # accidental fill cost per unit (eval-time; 0 during unconstrained training)
+    c_reg: float = 0.0005            # regulatory penalty per unit volume spoofed (eval-time; 0 during training)
 
     # Zero LOB participation
     num_messages_by_agent: int = 0

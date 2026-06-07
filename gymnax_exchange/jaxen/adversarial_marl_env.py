@@ -109,17 +109,22 @@ class AdversarialMARLEnv(MARLEnv):
         3. We correct the adversary's reward with the -r_mm component
         4. We add oracle labels and regime to info
         """
-        # Read adversary action and clip to budget (before parent call so we have it)
-        adv_cfg = self.list_of_agents_configs[self._adv_idx]
+        # Read adversary action (before parent call so we have it)
+        adv_instance = self.instance_list[self._adv_idx]
         adv_action_raw = actions[self._adv_idx]  # shape (n_adv, 10) — may have leading batch dim
         adv_state_before = state.agent_states[self._adv_idx]
 
         # Handle potential batch dimension (n_agents=1 case → squeeze to (10,))
         adv_action_1d = jnp.squeeze(adv_action_raw, axis=0) if adv_action_raw.ndim > 1 else adv_action_raw
-        budget_per_level = adv_state_before.budget_remaining / jnp.maximum(adv_cfg.n_spoof_levels, 1)
-        # budget_remaining is shape (1,) when vmapped over 1 agent — take scalar
-        budget_per_level_scalar = jnp.squeeze(budget_per_level)
-        clipped_adv_action = jnp.clip(adv_action_1d, 0.0, budget_per_level_scalar)
+        # Depth-scaled, telegraph-gated injection — identical to what SpoofingAgent.get_messages
+        # used for budget/cost tracking, since both consume the same pre-step state.world_state
+        # and the same attack_active gate.
+        adv_budget_scalar = jnp.squeeze(adv_state_before.budget_remaining)
+        attack_active_prev = adv_state_before.attack_active  # keep stored shape (e.g. (1,))
+        clipped_adv_action = adv_instance.action_to_injection(
+            adv_action_1d, state.world_state, adv_budget_scalar,
+            gate=jnp.squeeze(attack_active_prev),
+        )
 
         # ---- Call parent (all LOB logic happens here) ----
         obs_list, new_state, reward_list, dones, info = super().step_env(
@@ -177,10 +182,24 @@ class AdversarialMARLEnv(MARLEnv):
         adv_reward_corrected = jnp.expand_dims(-mm_reward_scalar - adv_costs, axis=0)
         reward_list[self._adv_idx] = adv_reward_corrected
 
-        # ---- Update adversary state with mm reward this step ----
+        # ---- Evolve the telegraph attack gate for the NEXT step ----
+        # OFF -> ON with prob attack_on_prob; ON -> OFF with prob attack_off_prob.
+        # fold_in keeps the parent's RNG stream untouched while giving an independent draw.
+        tel_key = jax.random.fold_in(key, 0xA7)
+        adv_cfg = self.list_of_agents_configs[self._adv_idx]
+        u = jax.random.uniform(tel_key, shape=attack_active_prev.shape)
+        next_active = jnp.where(
+            attack_active_prev > 0.5,
+            (u >= adv_cfg.attack_off_prob).astype(jnp.float32),   # currently ON
+            (u < adv_cfg.attack_on_prob).astype(jnp.float32),     # currently OFF
+        )
+
+        # ---- Update adversary state with mm reward this step + evolved gate ----
         old_adv_states = new_state.agent_states[self._adv_idx]
+        # Preserve shape of prev_mm_reward from reset state (1,) — mm_reward already (1,)
         new_adv_states = old_adv_states.replace(
-            prev_mm_reward=mm_reward_scalar,
+            prev_mm_reward=mm_reward,
+            attack_active=next_active,
         )
         new_agent_states = list(new_state.agent_states)
         new_agent_states[self._adv_idx] = new_adv_states

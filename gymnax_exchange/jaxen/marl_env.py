@@ -273,29 +273,24 @@ class MARLEnv(MultiAgentEnv):
             if self.multi_agent_config.number_of_agents_per_type[agent_type_index]==1:
                 agent_actions=jnp.expand_dims(agent_actions,axis=0)
             action_msgs, cancel_msgs, extras = get_messages_vmap(agent_actions, state.world_state, agent_state, agent_params)
-            all_action_msgs_list.append(action_msgs)
-            all_cancel_msgs_list.append(cancel_msgs)
+            agent_cfg = self.list_of_agents_configs[agent_type_index]
+            if agent_cfg.num_messages_by_agent > 0:
+                all_action_msgs_list.append(action_msgs)
+                all_cancel_msgs_list.append(cancel_msgs)
             agent_act_extras_list.append(extras)
 
-        #jax.debug.print("all action msgs: {}", all_action_msgs_list)
-       # print(f"all cancel msgs: {all_cancel_msgs_list}")
-       # print(f"all action msgs shape: {all_action_msgs_list[0].shape}")
-       # print(f"all cancel msgs shape: {all_cancel_msgs_list[0].shape}")
-
         if len(self.instance_list) > 0:
-            all_action_msgs = jnp.vstack([x.reshape(-1, x.shape[-1]) for x in all_action_msgs_list])
-            all_cancel_msgs = jnp.vstack([x.reshape(-1, x.shape[-1]) for x in all_cancel_msgs_list])
+            all_action_msgs = jnp.vstack([x.reshape(-1, x.shape[-1]) for x in all_action_msgs_list]) if all_action_msgs_list else jnp.empty((0, 8), dtype=jnp.int32)
+            all_cancel_msgs = jnp.vstack([x.reshape(-1, x.shape[-1]) for x in all_cancel_msgs_list]) if all_cancel_msgs_list else jnp.empty((0, 8), dtype=jnp.int32)
 
 
 
 
             # Replace order ids in the action messages:
-            new_order_ids = jnp.arange( 0 , 0 - self.num_action_msgs_per_step_by_all_agents, -1)
-        
-            new_order_ids = new_order_ids + jnp.full(self.num_action_msgs_per_step_by_all_agents, state.world_state.order_id_counter)
-       
+            n_action_msgs = all_action_msgs.shape[0]  # actual count (may differ from pre-computed if agents return variable-size msgs)
+            new_order_ids = jnp.arange(0, -n_action_msgs, -1) + state.world_state.order_id_counter
             all_action_msgs = all_action_msgs.at[:, 4].set(new_order_ids)
-            new_order_id_counter = state.world_state.order_id_counter - self.num_action_msgs_per_step_by_all_agents # Used later when we update the state, order ids are counter downwards (negative numbers)
+            new_order_id_counter = state.world_state.order_id_counter - n_action_msgs  # counter decrements by actual msgs submitted
 
             # Shuffle the action messages if the config is set to True
             if self.multi_agent_config.world_config.shuffle_action_messages:

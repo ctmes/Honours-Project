@@ -133,6 +133,7 @@ class SpoofingAgentState():
     volume_injected: float       # cumulative injected volume this episode
     prev_mm_reward: float        # MM's reward from last step (for adversary reward computation)
     prev_detection_prob: float   # MM's detection head output last step; updated by training loop
+    attack_active: float         # telegraph gate: 1.0 during attack windows, 0.0 during clean spans
 
 
 @struct.dataclass

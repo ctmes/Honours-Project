@@ -1,7 +1,9 @@
 import databento as db
 from pathlib import Path
 
-client = db.Historical(key="db-nwxHtt6SrqCq8J96J5dhDiXPJ93Ng")
+from db_key import get_databento_key
+
+client = db.Historical(key=get_databento_key())
 
 output_dir = Path("data/databento/AMZN/2022")
 output_dir.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,8 @@
 import databento as db
 
-client = db.Historical(key="db-nwxHtt6SrqCq8J96J5dhDiXPJ93Ng")
+from db_key import get_databento_key
+
+client = db.Historical(key=get_databento_key())
 
 params = dict(
     dataset="XNAS.ITCH",

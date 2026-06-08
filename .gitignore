@@ -113,3 +113,10 @@ debug_output/*
 jax_trace/*
 .ipython/*
 baseline_sweep_results/*
+
+# Secrets and run artifacts — must never be committed
+.env
+.env.*
+checkpoints/
+.hydra/
+pre_reset_states/

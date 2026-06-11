@@ -30,12 +30,12 @@
 # WandB Params
 "ENTITY": "your-wandb-entity"
 "PROJECT": "2PLayer" #"v4_2Player_reference_price_ablation" #"DEBUG"
-"WANDB_MODE" : "online"
+"WANDB_MODE" : "disabled"
 
 # High-Level Params
 "CALC_EVAL" : False
-"TimePeriod" : "2024"
-"EvalTimePeriod" : "2024"
+"TimePeriod" : "2022_small"
+"EvalTimePeriod" : "2022_small"
 "Calculate Baseline" : False
 "Timing" : False
 

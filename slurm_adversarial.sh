@@ -19,4 +19,5 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=0.95
 
 cd /group/pmc097/cmelville/Honours-Project
 
+export PYTHONUNBUFFERED=1
 python gymnax_exchange/jaxrl/MARL/ippo_adversarial.py --config-name=ippo_adversarial

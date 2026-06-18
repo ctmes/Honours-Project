@@ -14,8 +14,8 @@ source activate honours
 
 export PYTHONPATH="/group/pmc097/cmelville/Honours-Project:$PYTHONPATH"
 export WANDB_MODE=disabled
-export XLA_PYTHON_CLIENT_PREALLOCATE=true
-export XLA_PYTHON_CLIENT_MEM_FRACTION=0.95
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+export XLA_PYTHON_CLIENT_MEM_FRACTION=0.85
 
 cd /group/pmc097/cmelville/Honours-Project
 

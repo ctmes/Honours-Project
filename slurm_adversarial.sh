@@ -10,7 +10,8 @@
 #SBATCH --error=/group/pmc097/cmelville/logs/adversarial_%j.err
 
 module load Anaconda3/2024.06 cuda/12.6.3
-source activate honours
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate honours
 
 for dir in /home/cmelville/.conda/envs/honours/lib/python3.11/site-packages/nvidia/*/lib; do
     [ -d "$dir" ] && export LD_LIBRARY_PATH="$dir:$LD_LIBRARY_PATH"

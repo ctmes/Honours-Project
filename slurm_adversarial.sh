@@ -9,20 +9,19 @@
 #SBATCH --output=/group/pmc097/cmelville/logs/adversarial_%j.out
 #SBATCH --error=/group/pmc097/cmelville/logs/adversarial_%j.err
 
-module load Anaconda3/2024.06 cuda/12.6.3
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate honours
+module load cuda/12.6.3
 
-for dir in /home/cmelville/.conda/envs/honours/lib/python3.11/site-packages/nvidia/*/lib; do
-    [ -d "$dir" ] && export LD_LIBRARY_PATH="$dir:$LD_LIBRARY_PATH"
+NVIDIA_LIBS=/home/cmelville/.conda/envs/honours/lib/python3.11/site-packages/nvidia
+for dir in $NVIDIA_LIBS/*/lib; do
+    export LD_LIBRARY_PATH=$dir:$LD_LIBRARY_PATH
 done
 
 export PYTHONPATH="/group/pmc097/cmelville/Honours-Project:$PYTHONPATH"
 export WANDB_MODE=disabled
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 export XLA_PYTHON_CLIENT_MEM_FRACTION=0.85
+export PYTHONUNBUFFERED=1
 
 cd /group/pmc097/cmelville/Honours-Project
 
-export PYTHONUNBUFFERED=1
-python gymnax_exchange/jaxrl/MARL/ippo_adversarial.py --config-name=ippo_adversarial "ENV_CONFIG=config/env_configs/adversarial_mm_cluster.json"
+/home/cmelville/.conda/envs/honours/bin/python gymnax_exchange/jaxrl/MARL/ippo_adversarial.py --config-name=ippo_adversarial "ENV_CONFIG=config/env_configs/adversarial_mm_cluster.json"

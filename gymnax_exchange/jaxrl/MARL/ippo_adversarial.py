@@ -24,8 +24,8 @@ import functools
 from dataclasses import fields
 from typing import NamedTuple, Any, Dict, Sequence
 
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.95"
-os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "true"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.85"
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 
 logging.getLogger("orbax").setLevel(logging.ERROR)
 logging.getLogger("absl").setLevel(logging.ERROR)

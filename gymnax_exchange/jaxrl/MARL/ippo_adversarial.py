@@ -85,6 +85,56 @@ def unbatchify(x: jnp.ndarray, num_envs: int, num_agents: int):
     return x.reshape((num_envs, num_agents, -1))
 
 
+# ---------------------------------------------------------------------------
+# Reward normalization (return-scale running std) — stabilises the value loss.
+# The policy gradient is already scale-invariant (advantages are re-normalised
+# per batch), but the value loss fits raw-scale returns; with large/growing
+# rewards that produces an exploding value loss whose gradient, flowing through
+# the SHARED encoder, destabilises the policy. Scaling rewards by the running
+# std of the discounted return keeps the whole value pathway O(1).
+# ---------------------------------------------------------------------------
+
+class RunningMeanStd:
+    """Welford running mean/variance for a scalar stream."""
+    def __init__(self):
+        self.mean = 0.0
+        self.var = 1.0
+        self.count = 1e-4
+
+    def update(self, x):
+        x = np.asarray(x, dtype=np.float64).ravel()
+        if x.size == 0:
+            return
+        bm, bv, bc = x.mean(), x.var(), x.size
+        delta = bm - self.mean
+        tot = self.count + bc
+        self.mean += delta * bc / tot
+        m_a = self.var * self.count
+        m_b = bv * bc
+        M2 = m_a + m_b + delta * delta * self.count * bc / tot
+        self.var = M2 / tot
+        self.count = tot
+
+
+def normalize_rewards(rewards, dones, gamma, ret_acc, rms, eps=1e-8):
+    """Scale rewards by the running std of the discounted return (SB3-style).
+
+    `rewards`, `dones` are (T, N) for one agent type; `ret_acc` is the per-actor
+    discounted-return accumulator carried across updates; `rms` tracks its std.
+    Returns (normalized_rewards, updated_ret_acc). Pure NumPy — runs Python-side
+    between trajectory collection and GAE.
+    """
+    r = np.asarray(rewards, dtype=np.float64)
+    d = np.asarray(dones, dtype=np.float64)
+    ret = np.asarray(ret_acc, dtype=np.float64)
+    returns = np.empty_like(r)
+    for t in range(r.shape[0]):
+        ret = r[t] + gamma * ret * (1.0 - d[t])
+        returns[t] = ret
+    rms.update(returns)
+    return r / np.sqrt(rms.var + eps), ret
+
+
 def create_agent_configs(config: dict) -> dict:
     agent_configs = {}
     if "AGENT_CONFIGS" in config:
@@ -600,6 +650,13 @@ def make_train(config: dict):
             jax.random.PRNGKey(config["SEED"] + 1),
         )
 
+        # Reward normalizers (return-scale running std), one per agent type
+        normalize_rewards_on = bool(config.get("NORMALIZE_REWARDS", True))
+        ret_rms = [RunningMeanStd() for _ in range(len(train_states))]
+        ret_acc = [np.zeros((config["NUM_ACTORS_PERTYPE"][i],), dtype=np.float64)
+                   for i in range(len(train_states))]
+        checkpoint_every = max(1, int(config.get("CHECKPOINT_EVERY", 50)))
+
         for update_i in range(start_update_i, config["NUM_UPDATES"]):
             phase = (update_i // freeze_n) % 2   # 0 = update adv, 1 = update MM
             print(f"Update {update_i + 1}/{config['NUM_UPDATES']}  phase={'adv' if phase==0 else 'mm'}")
@@ -623,9 +680,18 @@ def make_train(config: dict):
             advantages = []
             targets = []
             for i in range(len(train_states_curr)):
+                traj_i = traj_batch[i]
+                if normalize_rewards_on:
+                    norm_r, ret_acc[i] = normalize_rewards(
+                        traj_i.reward, traj_i.global_done,
+                        config["GAMMA"][i], ret_acc[i], ret_rms[i],
+                    )
+                    traj_i = traj_i._replace(
+                        reward=jnp.asarray(norm_r, dtype=traj_i.reward.dtype)
+                    )
                 adv_i, tgt_i = _calculate_gae(
                     config["GAMMA"][i], config["GAE_LAMBDA"][i],
-                    traj_batch[i], last_vals[i],
+                    traj_i, last_vals[i],
                 )
                 advantages.append(adv_i)
                 targets.append(tgt_i)
@@ -721,13 +787,14 @@ def make_train(config: dict):
 
             _log(update_i, phase, traj_batch, loss_mm, loss_adv, run)
 
-            # ---- Checkpoint -----------------------------------------------
-            ckpt = {
-                "model": runner_state[0],
-                "metrics": {"avg_reward": [float(jnp.mean(tr.reward)) for tr in traj_batch]},
-            }
-            save_args = orbax_utils.save_args_from_target(ckpt)
-            checkpoint_manager.save(update_i + 1, ckpt, save_kwargs={"save_args": save_args})
+            # ---- Checkpoint (every CHECKPOINT_EVERY updates, plus the last) ----
+            if ((update_i + 1) % checkpoint_every == 0) or ((update_i + 1) == config["NUM_UPDATES"]):
+                ckpt = {
+                    "model": runner_state[0],
+                    "metrics": {"avg_reward": [float(jnp.mean(tr.reward)) for tr in traj_batch]},
+                }
+                save_args = orbax_utils.save_args_from_target(ckpt)
+                checkpoint_manager.save(update_i + 1, ckpt, save_kwargs={"save_args": save_args})
             del traj_batch, advantages, targets, last_vals
             gc.collect()
 

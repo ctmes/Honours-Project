@@ -161,11 +161,36 @@ class SpoofingAgent:
         bestbids: jax.Array,
         ep_done_time: bool,
     ) -> Tuple[jax.Array, dict]:
-        # Accidental fill probability proxy: injected vol / (total depth + 1)
+        # ---- Accidental-fill (unwind) cost — market-conditional, running ----
+        # This is an observation-space adversary: it never holds real inventory, so the
+        # accidental-fill cost is a modelled proxy for the risk that a spoofed quote is
+        # hit before cancellation and must be unwound at an adverse price. Per the unwind
+        # economics, that cost is NOT fixed: when a spoof is filled the adversary unwinds
+        # at ~ half-spread + market impact, both of which depend on the book state. It is
+        # charged every active step on cumulative injected volume, so it *accrues* over
+        # the holding window rather than being a one-shot hit.
         total_bid_depth = jnp.sum(jnp.where(world_state.bid_raw_orders[:, 0] > 0,
                                             world_state.bid_raw_orders[:, 1], 0))
-        depth_pressure = agent_state.volume_injected / (total_bid_depth + 1.0)
-        accidental_fills = self.cfg.c_fill * agent_state.volume_injected * depth_pressure
+        total_ask_depth = jnp.sum(jnp.where(world_state.ask_raw_orders[:, 0] > 0,
+                                            world_state.ask_raw_orders[:, 1], 0))
+        total_depth = (total_bid_depth + total_ask_depth).astype(jnp.float32)
+
+        # Fill-probability proxy: a larger injection relative to resting depth is more
+        # likely to be hit before it can be cancelled.
+        fill_prob = jnp.clip(agent_state.volume_injected / (total_depth + 1.0), 0.0, 1.0)
+        filled_volume = fill_prob * agent_state.volume_injected
+
+        # Adverse unwind price per share = half-spread + inverse-depth market impact
+        # (Cont-Kukanov-Stoikov: unwinding into a thinner book moves price more). Both
+        # legs widen in stressed/thin regimes — the same microstructure that motivates
+        # regime conditioning. c_impact (dimensionless) scales the depth-consumption leg.
+        best_bid_price = world_state.best_bids[-1, 0].astype(jnp.float32)
+        best_ask_price = world_state.best_asks[-1, 0].astype(jnp.float32)
+        half_spread = jnp.maximum(best_ask_price - best_bid_price, 0.0) / 2.0
+        depth_consumed = filled_volume / (total_depth + 1.0)
+        unwind_cost_per_share = half_spread * (1.0 + self.cfg.c_impact * depth_consumed)
+        accidental_fills = self.cfg.c_fill * filled_volume * unwind_cost_per_share
+
         regulatory_cost = self.cfg.c_reg * agent_state.volume_injected
 
         # Full adversary reward = -r_mm - costs. The -r_mm term is added by

@@ -223,7 +223,8 @@ class SpoofingAgentConfig:
     attack_on_prob: float = 0.1
     attack_off_prob: float = 0.1
     budget_per_episode: float = 500.0
-    c_fill: float = 0.001            # accidental fill cost per unit (eval-time; 0 during unconstrained training)
+    c_fill: float = 0.001            # accidental-fill (unwind) cost multiplier (eval-time; 0 during unconstrained training)
+    c_impact: float = 1.0            # dimensionless: amplifies unwind cost by fraction of book depth consumed (Cont-Kukanov-Stoikov)
     c_reg: float = 0.0005            # regulatory penalty per unit volume spoofed (eval-time; 0 during training)
 
     # Zero LOB participation

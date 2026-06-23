@@ -24,6 +24,8 @@
 "FREEZE_ALTERNATION": 10        # number of updates per phase before switching
 "DETECTION_LOSS_COEF": 0.5     # weight of BCE detection loss in MM update
 "PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true       # scale rewards by running std of discounted return (stabilises value loss)
+"CHECKPOINT_EVERY": 50          # save a checkpoint every N updates (plus the final update)
 "REGIME_LABELS_PATH": ""
 "WINDOW_TO_DATE_PATH": ""
 

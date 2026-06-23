@@ -1,0 +1,82 @@
+# ============================================================================
+# Kaya STABILITY-VALIDATION run (single seed, V100-sized, 5-day slice).
+#
+# Purpose: confirm the reward/value normalization (NORMALIZE_REWARDS) bounded
+# the MM value loss that diverged on the 19 Jun run (§4.7: 41k -> 282k and
+# climbing). This is the GATE before the 20-seed sweep — do NOT spend sweep
+# budget until value loss is confirmed stable here.
+#
+# Differences from ippo_adversarial.yaml (everything else identical, so the
+# only changes vs the 19 Jun run are the V100 sizing + NORMALIZE_REWARDS):
+#   NUM_ENVS         64    -> 16      (proven to fit 16 GB V100; 32 is an
+#                                      unproven ceiling — probe separately)
+#   NUM_STEPS        6400  -> 512     (proven 19 Jun value; more updates/hour)
+#   TOTAL_TIMESTEPS  5e8   -> 1638400 (= exactly 200 updates: 1638400/512/16)
+#   ENV_CONFIG       ...   -> adversarial_mm_cluster.json (c_fill=c_reg=0, i.e.
+#                                      unconstrained training; cost model inert)
+#
+# Success criteria (pass => size and launch the sweep):
+#   1. MM value loss stays bounded (primary pass/fail).
+#   2. adv_label_rate holds ~0.48-0.52 (telegraph balance intact).
+#   3. Detection BCE: watch for dips below 0.693 once stable.
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 1638400     # 200 updates at NUM_ENVS=16, NUM_STEPS=512
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999999999, 0.99]
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42
+
+# Adversarial-specific
+"FREEZE_ALTERNATION": 10        # number of updates per phase before switching
+"DETECTION_LOSS_COEF": 0.5     # weight of BCE detection loss in MM update
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true       # scale rewards by running std of discounted return (the fix under test)
+"CHECKPOINT_EVERY": 50          # save a checkpoint every N updates (plus the final update)
+"REGIME_LABELS_PATH": ""
+"WINDOW_TO_DATE_PATH": ""
+
+# Env config — cluster json (unconstrained training: c_fill=c_reg=0)
+"ENV_CONFIG": "config/env_configs/adversarial_mm_cluster.json"
+
+# Data periods
+"TimePeriod": "2022_small"
+
+# WandB
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v0_AdversarialMM_stability"
+"WANDB_MODE": "disabled"
+
+SWEEP_PARAMETERS:
+    SEED:
+      values: [42]
+    AGENT_CONFIGS:
+      parameters:
+        AdversarialMM:
+          parameters:
+            inventoryPnL_eta:
+              values: [0.6]
+            inventoryPnL_gamma:
+              values: [0.5]
+            rebate_bps:
+              values: [0.15]
+        Spoofing:
+          parameters:
+            budget_per_episode:
+              values: [500.0]
+            c_reg:
+              values: [0.0005]

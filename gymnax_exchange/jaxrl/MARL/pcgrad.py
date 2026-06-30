@@ -79,16 +79,21 @@ def pcgrad_merge(
     # Sum the two projected encoder gradients
     enc_merged = jax.tree.map(lambda a, b: a + b, enc_p_proj, enc_d_proj)
 
-    # Rebuild merged params dict:
-    #   - encoder: projected + summed
-    #   - everything from grads_policy that is NOT the detection head
-    #   - detection head from grads_detect
-    merged_params = dict(params_dict)
-    merged_params[encoder_key] = enc_merged
-
-    # Copy over detection head grads (keys present in det_dict but not policy)
-    for key, val in det_dict.items():
-        if key not in params_dict:
-            merged_params[key] = val
+    # Rebuild merged params dict. jax.grad over the full params produces a
+    # gradient leaf for EVERY submodule (PolicyHead, DetectionHead, ...), zero
+    # where that loss does not depend on it. So both grads_policy and
+    # grads_detect contain all keys; each head only receives nonzero gradient
+    # from its own loss. Summing non-encoder keys is therefore exact:
+    #   - encoder:       PCGrad-projected, then summed
+    #   - PolicyHead:    policy_grad + 0 = policy_grad
+    #   - DetectionHead: 0 + detect_grad = detect_grad
+    merged_params = {}
+    for key in params_dict:
+        if key == encoder_key:
+            merged_params[key] = enc_merged
+        else:
+            merged_params[key] = jax.tree.map(
+                lambda a, b: a + b, params_dict[key], det_dict[key]
+            )
 
     return {"params": merged_params}

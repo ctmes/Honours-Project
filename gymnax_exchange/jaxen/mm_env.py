@@ -3204,9 +3204,14 @@ class MarketMakingAgent():
         else:
             time_remaining_norm = (world_state.max_steps_in_episode - world_state.step_counter) / jnp.maximum(world_state.max_steps_in_episode, 1)
 
-        # OFI: (best_bid_vol - best_ask_vol) / (sum + eps)
-        best_bid_vol = world_state.best_bids[-1, 1].astype(jnp.float32)
-        best_ask_vol = world_state.best_asks[-1, 1].astype(jnp.float32)
+        # OFI: (best_bid_vol - best_ask_vol) / (sum + eps).
+        # Computed from the PERTURBED best-level volumes so the spoof reaches this
+        # channel too — otherwise the adversary distorts the displayed L2 depth but
+        # the MM still sees a clean order-flow-imbalance signal, defeating the
+        # adverse-selection mechanism the attack is meant to exploit (CKS).
+        # perturbed_l2 layout: [ask_p, ask_v, bid_p, bid_v] x10 -> best ask vol = [1], best bid vol = [3].
+        best_ask_vol = perturbed_l2[1].astype(jnp.float32)
+        best_bid_vol = perturbed_l2[3].astype(jnp.float32)
         ofi = (best_bid_vol - best_ask_vol) / (best_bid_vol + best_ask_vol + 1e-8)
 
         return jnp.concatenate([

@@ -30,7 +30,11 @@
 "TOTAL_TIMESTEPS": 1638400     # 200 updates at NUM_ENVS=16, NUM_STEPS=512
 "UPDATE_EPOCHS": 4
 "NUM_MINIBATCHES": 4
-"GAMMA": [0.999999999, 0.99]
+# MM gamma lowered from 0.999999999 (~undiscounted) to 0.999: the near-1 discount
+# made value targets accumulate over the whole 512-step episode against O(1e5)-magnitude
+# rewards, a primary driver of the 19 Jun value-loss divergence (41k->282k). 0.999 keeps
+# a long (~1000-step) horizon while bounding return magnitude. Adversary unchanged.
+"GAMMA": [0.999, 0.99]
 "GAE_LAMBDA": [0.85, 0.95]
 "CLIP_EPS": 0.2
 "SCALE_CLIP_EPS": [false, false]

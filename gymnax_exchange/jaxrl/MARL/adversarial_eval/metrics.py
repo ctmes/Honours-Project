@@ -48,6 +48,31 @@ def sharpe_ratio(returns, periods_per_year: float) -> float:
     return float(r.mean() / sd * np.sqrt(periods_per_year))
 
 
+def softmin_sharpe(returns, periods_per_year: float, temperature: float = 1.0) -> float:
+    """Annualised SoftMin Sharpe (Spooner & Savani robustness check).
+
+    A Sharpe variant that downweights toward the *worst* returns via a softmin
+    weighting w_i = softmax(-r_i / temperature), so episodic outlier losses
+    dominate the ratio rather than the sustained mean. Targets episodic outliers
+    rather than the mean-drift spoofing produces; retained for the sensitivity
+    sweep, not as a primary metric. `temperature -> inf` recovers vanilla Sharpe;
+    smaller temperature concentrates weight on the minimum return. Set the
+    temperature to match the Spooner & Savani convention used in the writeup.
+    """
+    r = _flatten(returns)
+    if r.size < 2:
+        return np.nan
+    # Numerically stable softmin weights over returns.
+    z = -r / max(temperature, _EPS)
+    w = np.exp(z - z.max())
+    w /= w.sum()
+    w_mean = float(np.sum(w * r))
+    w_var = float(np.sum(w * (r - w_mean) ** 2))
+    if w_var < _EPS:
+        return np.nan
+    return float(w_mean / np.sqrt(w_var) * np.sqrt(periods_per_year))
+
+
 def sortino_ratio(returns, periods_per_year: float, target: float = 0.0) -> float:
     """Annualised Sortino = mean(returns - target) / downside_deviation * sqrt(ppy).
 

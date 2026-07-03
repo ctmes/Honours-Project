@@ -1,7 +1,6 @@
 from functools import partial
 import importlib
 from os import remove
-from readline import remove_history_item
 from typing import Dict, NamedTuple, Optional, Tuple
 from unicodedata import bidirectional
 import gymnax_exchange.jaxob.JaxOrderBookArrays as job

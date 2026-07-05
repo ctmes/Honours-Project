@@ -1552,11 +1552,15 @@ class MarketMakingAgent():
         action_msgs = jnp.stack([types, sides, quants, prices, order_ids,trader_ids], axis=1)
         action_msgs = jnp.concatenate([action_msgs, times], axis=1)
 
-        # action_msgs = jnp.where((action==9) & (~empty_book), jnp.ones_like(action_msgs)*9, action_msgs)  
+        # action_msgs = jnp.where((action==9) & (~empty_book), jnp.ones_like(action_msgs)*9, action_msgs)
         #jax.debug.print("action_msgs mm:{}",action_msgs)
 
-        return action_msgs,{"bid_quant":bid_quant,"ask_quant":ask_quant,"empty_book":empty_book,"bid_distance_from_best":0,"ask_distance_from_best":0,"posted_bid_price":0,"posted_ask_price":0}
-    
+        # bobRL posts at the touch; report the actually posted prices (0 when that
+        # side posted nothing) so the quote-displacement metric can be computed.
+        posted_bid_price = jnp.where(bid_quant > 0, best_bid, 0)
+        posted_ask_price = jnp.where(ask_quant > 0, best_ask, 0)
+        return action_msgs,{"bid_quant":bid_quant,"ask_quant":ask_quant,"empty_book":empty_book,"bid_distance_from_best":0,"ask_distance_from_best":0,"posted_bid_price":posted_bid_price,"posted_ask_price":posted_ask_price}
+
     def _getActionMsgs_fixedPrice(self, action: jax.Array, world_state: WorldState, agent_state: MMEnvState, agent_params: MMEnvParams):
         '''Shape the action quantities in to messages sent the order book at the 
         prices levels determined from the orderbook'''
@@ -3184,9 +3188,13 @@ class MarketMakingAgent():
             perturbed_l2        40  [ask_p_k, ask_v_k, bid_p_k, bid_v_k] x10
             inventory            1  (normalised)
             time_remaining       1  (normalised)
-            OFI                  1  (order flow imbalance)
-            prev_detection_prob  1
-            regime               1
+            queue_imbalance      1  (best-quote depth imbalance — NOT CKS order-flow imbalance)
+            prev_detection_prob  1  (zeroed when cfg.prev_detection_in_obs is False)
+            regime               1  (zeroed when cfg.regime_conditioning is False)
+
+        The ablation flags keep the observation 45-dim in every configuration (channels
+        are zeroed, not removed) so all configs share one network architecture and the
+        config-2 arm carries NO signal in these channels rather than untrained noise.
         """
         # Normalise L2: prices by 1e6, volumes by 1e4
         l2_norm = perturbed_l2 / jnp.array(
@@ -3204,19 +3212,30 @@ class MarketMakingAgent():
         else:
             time_remaining_norm = (world_state.max_steps_in_episode - world_state.step_counter) / jnp.maximum(world_state.max_steps_in_episode, 1)
 
-        # OFI: (best_bid_vol - best_ask_vol) / (sum + eps).
+        # Queue imbalance (QI): (best_bid_vol - best_ask_vol) / (sum + eps).
+        # NOTE: this is the instantaneous best-quote depth imbalance, NOT the
+        # Cont-Kukanov-Stoikov order-flow imbalance (which is the net signed FLOW of
+        # depth changes over an interval). True CKS OFI is not computable under
+        # snapshot-level observation perturbation, so we expose QI and name it as such.
         # Computed from the PERTURBED best-level volumes so the spoof reaches this
         # channel too — otherwise the adversary distorts the displayed L2 depth but
-        # the MM still sees a clean order-flow-imbalance signal, defeating the
-        # adverse-selection mechanism the attack is meant to exploit (CKS).
+        # the MM still sees a clean imbalance signal, defeating the adverse-selection
+        # mechanism the attack is meant to exploit.
         # perturbed_l2 layout: [ask_p, ask_v, bid_p, bid_v] x10 -> best ask vol = [1], best bid vol = [3].
         best_ask_vol = perturbed_l2[1].astype(jnp.float32)
         best_bid_vol = perturbed_l2[3].astype(jnp.float32)
-        ofi = (best_bid_vol - best_ask_vol) / (best_bid_vol + best_ask_vol + 1e-8)
+        queue_imbalance = (best_bid_vol - best_ask_vol) / (best_bid_vol + best_ask_vol + 1e-8)
+
+        # Ablation switches (static config flags → resolved at trace time). Zero the
+        # channel rather than removing it so the obs dim (45) is identical across configs.
+        if not getattr(self.cfg, "prev_detection_in_obs", True):
+            prev_detection_prob = jnp.zeros_like(prev_detection_prob)
+        if not getattr(self.cfg, "regime_conditioning", True):
+            regime = jnp.zeros_like(regime)
 
         return jnp.concatenate([
             l2_norm,
-            jnp.array([inventory_norm, time_remaining_norm, ofi,
+            jnp.array([inventory_norm, time_remaining_norm, queue_imbalance,
                        prev_detection_prob, regime], dtype=jnp.float32),
         ])
 
@@ -3249,7 +3268,7 @@ class MarketMakingAgent():
     def observation_space(self):
         """Observation space of the environment."""
         if self.cfg.observation_space == "adversarial_lob":
-            # 40 L2 + inventory + time_remaining + OFI + prev_detection_prob + regime
+            # 40 L2 + inventory + time_remaining + queue_imbalance + prev_detection_prob + regime
             return spaces.Box(-1000, 1000, (45,), dtype=jnp.float32)
         elif self.cfg.observation_space =="engineered":
             if self.world_config.ep_type == "fixed_time":

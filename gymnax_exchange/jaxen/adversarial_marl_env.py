@@ -147,7 +147,15 @@ class AdversarialMARLEnv(MARLEnv):
         perturbed_l2 = perturbed_l2.at[bid_vol_idx].add(clipped_adv_action[:5])
 
         # ---- Oracle adversarial label ----
-        adv_label = (jnp.sum(clipped_adv_action) > 0.0).astype(jnp.float32)
+        # Materiality floor (config, default 0.0 = legacy "> 0" behaviour): only count the
+        # step as an attack if injected volume exceeds a fraction of mean best-quote depth,
+        # measured on the same pre-step book that scaled the injection.
+        adv_cfg_label = self.list_of_agents_configs[self._adv_idx]
+        mean_best_depth = 0.5 * (
+            state.world_state.best_bids[-1, 1] + state.world_state.best_asks[-1, 1]
+        ).astype(jnp.float32)
+        label_floor = adv_cfg_label.label_materiality_frac * mean_best_depth
+        adv_label = (jnp.sum(clipped_adv_action) > label_floor).astype(jnp.float32)
 
         # ---- Regime indicator for current window ----
         regime = self._regime_array[new_state.world_state.window_index]
@@ -178,7 +186,10 @@ class AdversarialMARLEnv(MARLEnv):
         # ---- Correct adversary reward: add -r_mm component ----
         mm_reward = reward_list[self._mm_idx]  # shape (n_mm_agents,)
         mm_reward_scalar = jnp.squeeze(mm_reward)
-        adv_costs = info["agents"][self._adv_idx].get("costs_total", jnp.zeros(()))
+        # Direct indexing (NOT .get with a default): if the spoofer's info ever stops
+        # emitting costs_total this must fail loudly at trace time — a .get default here
+        # silently zeroed the economic-cost term for every run before 2026-07-04.
+        adv_costs = jnp.squeeze(info["agents"][self._adv_idx]["costs_total"])
         adv_reward_corrected = jnp.expand_dims(-mm_reward_scalar - adv_costs, axis=0)
         reward_list[self._adv_idx] = adv_reward_corrected
 

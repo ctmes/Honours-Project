@@ -39,12 +39,36 @@ def agent(cfg, world_cfg):
     return SpoofingAgent(cfg=cfg, world_config=world_cfg)
 
 
-def _make_state(budget: float = 500.0) -> SpoofingAgentState:
+def _make_state(budget: float = 500.0, attack_active: float = 1.0) -> SpoofingAgentState:
     return SpoofingAgentState(
         budget_remaining=jnp.array(budget, dtype=jnp.float32),
         volume_injected=jnp.zeros(()),
         prev_mm_reward=jnp.zeros(()),
         prev_detection_prob=jnp.zeros(()),
+        attack_active=jnp.array(attack_active, dtype=jnp.float32),
+    )
+
+
+def _make_world_state(best_price: int = 10000, best_vol: int = 50):
+    """Minimal WorldState: the depth-scaled injection only reads best_bids/best_asks
+    [-1, 1] (best-quote depth), plus raw order arrays for the cost model."""
+    from gymnax_exchange.jaxen.StatesandParams import WorldState
+    best = jnp.tile(jnp.array([[best_price, best_vol]], dtype=jnp.int32), (5, 1))
+    return WorldState(
+        ask_raw_orders=jnp.zeros((100, 8), dtype=jnp.int32),
+        bid_raw_orders=jnp.zeros((100, 8), dtype=jnp.int32),
+        trades=jnp.zeros((10, 8), dtype=jnp.int32),
+        init_time=jnp.zeros(2, dtype=jnp.int32),
+        window_index=0,
+        max_steps_in_episode=6400,
+        start_index=0,
+        step_counter=100,
+        best_bids=best,
+        best_asks=best,
+        time=jnp.zeros(2, dtype=jnp.int32),
+        order_id_counter=0,
+        mid_price=jnp.float32(best_price),
+        delta_time=jnp.float32(1.0),
     )
 
 
@@ -98,7 +122,7 @@ def test_zero_lob_messages(agent, cfg):
 
     action_msgs, cancel_msgs, extras = agent.get_messages(
         action=action,
-        world_state=None,    # not used
+        world_state=_make_world_state(),   # depth-scaled injection reads best-quote depth
         agent_state=state,
         agent_params=params,
     )
@@ -123,12 +147,14 @@ def test_action_clipped_to_budget(agent):
     state  = _make_state(budget=budget)
     params = SpoofingAgentParams(budget_per_episode=jnp.array([budget]))
 
-    # Action well above budget
+    # Action well above budget (clip(action,0,1)=1 per level, then depth-scaled:
+    # with uniform best-quote depth the 10 levels inject equally and are scaled
+    # down proportionally to the remaining budget)
     action = jnp.ones(10) * 200.0
 
     _, _, extras = agent.get_messages(
         action=action,
-        world_state=None,
+        world_state=_make_world_state(best_vol=50),   # 2.0 * 50 * 10 levels = 1000 >> budget
         agent_state=state,
         agent_params=params,
     )
@@ -159,6 +185,7 @@ def test_reward_costs_nonpositive(agent, world_cfg):
         volume_injected=jnp.array(100.0),   # 100 units already injected
         prev_mm_reward=jnp.zeros(()),
         prev_detection_prob=jnp.zeros(()),
+        attack_active=jnp.array(1.0, dtype=jnp.float32),
     )
     params = SpoofingAgentParams(budget_per_episode=jnp.array([500.0]))
 
@@ -202,6 +229,34 @@ def test_reward_costs_nonpositive(agent, world_cfg):
     assert "costs_total" in extras, "Expected costs_total in extras"
     assert float(extras["costs_total"]) >= 0.0, \
         f"costs_total should be non-negative, got {float(extras['costs_total'])}"
+
+
+# ---------------------------------------------------------------------------
+# Test 4b: costs_total reaches the CONSUMER path (info dict), not just extras.
+#
+# AdversarialMARLEnv.step_env builds R_adv = -r_mm - info["agents"][adv]["costs_total"].
+# Before 2026-07-04 this key was only in get_reward's extras, never in the info dict
+# produced by update_state_and_get_done_and_info, so a .get() default silently zeroed
+# the economic-cost term in the adversary's reward. This test pins the contract.
+# ---------------------------------------------------------------------------
+
+def test_costs_total_in_info(agent):
+    state = _make_state(budget=400.0)
+    extras = {
+        "reward": jnp.array(-1.0),
+        "costs_total": jnp.array(3.5),
+        "accidental_fills": jnp.array(1.5),
+        "regulatory_cost": jnp.array(2.0),
+        "volume_injected_step": jnp.array(10.0),
+    }
+    # new_world_state is unused by the spoofer's state update; None is safe here.
+    new_state, done, info = agent.update_state_and_get_done_and_info(None, state, extras)
+
+    assert "costs_total" in info, \
+        "costs_total missing from spoofer info — AdversarialMARLEnv reads it to build R_adv"
+    assert float(info["costs_total"]) == pytest.approx(3.5)
+    assert float(info["accidental_fills"]) == pytest.approx(1.5)
+    assert float(info["regulatory_cost"]) == pytest.approx(2.0)
 
 
 # ---------------------------------------------------------------------------

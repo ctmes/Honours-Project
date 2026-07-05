@@ -231,6 +231,12 @@ class SpoofingAgent:
             "reward": extras.get("reward", jnp.zeros(())),
             "budget_remaining": new_state.budget_remaining,
             "volume_injected": new_state.volume_injected,
+            # Cost components MUST be exposed here: AdversarialMARLEnv.step_env reads
+            # info["agents"][adv]["costs_total"] to build R_adv = -r_mm - costs. Before
+            # this key existed the env's .get() default silently zeroed the cost term.
+            "costs_total": extras.get("costs_total", jnp.zeros(())),
+            "accidental_fills": extras.get("accidental_fills", jnp.zeros(())),
+            "regulatory_cost": extras.get("regulatory_cost", jnp.zeros(())),
         }
         return new_state, done, info
 

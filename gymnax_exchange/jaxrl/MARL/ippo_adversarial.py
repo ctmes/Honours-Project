@@ -69,7 +69,13 @@ class Transition(NamedTuple):
     reward: jnp.ndarray
     log_prob: jnp.ndarray
     obs: jnp.ndarray
-    adv_label: jnp.ndarray   # oracle spoofing label — for MM detection BCE loss
+    # Oracle spoofing label for the MM detection BCE loss. IMPORTANT alignment
+    # contract: this is the label matching *obs* — i.e. the label of the adversary
+    # action whose injection is visible in obs (the PREVIOUS step's env label),
+    # not the label of the action taken concurrently with obs. The env perturbs
+    # the observation it RETURNS at step t with action a_t, so obs_t carries
+    # a_{t-1}'s injection and must be paired with label(a_{t-1}).
+    adv_label: jnp.ndarray
     info: Any
 
 
@@ -129,8 +135,11 @@ def normalize_rewards(rewards, dones, gamma, ret_acc, rms, eps=1e-8):
     ret = np.asarray(ret_acc, dtype=np.float64)
     returns = np.empty_like(r)
     for t in range(r.shape[0]):
-        ret = r[t] + gamma * ret * (1.0 - d[t])
+        # SB3 semantics: accumulate first (the terminal step's reward — which includes
+        # the unwind PnL — enters WITH the prior accumulation), then reset on done.
+        ret = gamma * ret + r[t]
         returns[t] = ret
+        ret = ret * (1.0 - d[t])
     rms.update(returns)
     return r / np.sqrt(rms.var + eps), ret
 
@@ -213,14 +222,23 @@ def make_train(config: dict):
     freeze_n     = config.get("FREEZE_ALTERNATION", 10)
     detect_coef  = config.get("DETECTION_LOSS_COEF", 0.5)
     pcgrad_on    = config.get("PCGRAD_ENABLED", True)
+    # Ablation switch (config 2 vs 3): when the detection head is disabled the BCE
+    # branch is skipped entirely — no detection gradient ever touches the encoder.
+    # (The matching obs channels are zeroed in get_adversarial_observation.)
+    use_det      = bool(getattr(env.list_of_agents_configs[mm_idx], "use_detection_head", True))
 
     def linear_schedule(lr, count):
+        # Each agent's optax step count only advances on the updates where it is
+        # unfrozen — under alternating freezes that is ~half of NUM_UPDATES — so the
+        # anneal denominator is the per-agent update budget, not the global one.
+        # (With the global denominator the LR would only ever decay to ~0.5*LR.)
+        updates_per_agent = max(1, config["NUM_UPDATES"] // 2)
         frac = (
             1.0
             - (count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"]))
-            / config["NUM_UPDATES"]
+            / updates_per_agent
         )
-        return lr * frac
+        return lr * jnp.maximum(frac, 0.0)
 
     # -----------------------------------------------------------------------
     def train(rng, run: wandb.sdk.wandb_run.Run = None):
@@ -294,9 +312,13 @@ def make_train(config: dict):
 
         # ---- Inner: trajectory collection step -----------------------------
         def _env_step(runner_state, unused):
-            train_states, env_state, last_obs, last_done, h_states, rng = runner_state
+            (train_states, env_state, last_obs, last_done, h_states,
+             prev_adv_label, rng) = runner_state
 
             rng, _rng = jax.random.split(rng)
+            # Independent sampling key per agent type — a single shared key would
+            # correlate the MM's and the adversary's exploration noise.
+            agent_keys = jax.random.split(_rng, len(train_states))
 
             actions   = []
             values    = []
@@ -316,13 +338,26 @@ def make_train(config: dict):
                 values.append(value)
                 det_probs.append(det_prob)
 
-                action = pi.sample(seed=_rng)
+                action = pi.sample(seed=agent_keys[i])
                 log_probs.append(pi.log_prob(action))
                 action = unbatchify(
                     action, config["NUM_ENVS"],
                     env.multi_agent_config.number_of_agents_per_type[i],
                 )
                 actions.append(action.squeeze(-2) if action.ndim > 2 else action.squeeze())
+
+            # Feed the MM's detection output on last_obs into the adversary-state
+            # carrier BEFORE stepping, so the MM observation built inside env.step
+            # contains det(obs_t) — a one-step lag, as designed — rather than
+            # det(obs_{t-2}), and an auto-reset inside env.step replaces it with the
+            # reset value (no cross-episode leakage of the detection signal).
+            mm_det = det_probs[mm_idx][0].reshape(
+                env_state.agent_states[adv_idx].prev_detection_prob.shape
+            )
+            pre_adv_s = env_state.agent_states[adv_idx].replace(prev_detection_prob=mm_det)
+            pre_agent_states = list(env_state.agent_states)
+            pre_agent_states[adv_idx] = pre_adv_s
+            env_state = env_state.replace(agent_states=pre_agent_states)
 
             # Step env
             rng, _rng = jax.random.split(rng)
@@ -331,17 +366,16 @@ def make_train(config: dict):
                 env.step, in_axes=(0, 0, 0, None)
             )(rng_step, env_state, actions, env_params)
 
-            # Update prev_detection_prob in env_state from MM's det_prob this step
-            # det_probs[mm_idx] shape (1, NUM_ENVS) → (NUM_ENVS, 1) to match adv state field
-            mm_det = det_probs[mm_idx][0, :, None]
-            old_adv_s = env_state.agent_states[adv_idx]
-            new_adv_s = old_adv_s.replace(prev_detection_prob=mm_det)
-            new_agent_states = list(env_state.agent_states)
-            new_agent_states[adv_idx] = new_adv_s
-            env_state = env_state.replace(agent_states=new_agent_states)
-
-            # Oracle label: shape (num_envs,) — same for all MM actors in an env
-            adv_label_raw = info.get("adv_label", jnp.zeros((config["NUM_ENVS"],)))
+            # Oracle label alignment: the env labels the CURRENT action a_t, but the
+            # obs stored in this transition (last_obs) carries the injection of the
+            # PREVIOUS action a_{t-1}. Pair the transition with the carried label and
+            # push the current one forward — zeroed across episode boundaries because
+            # the auto-reset observation is unperturbed.
+            adv_label_now = info.get("adv_label", jnp.zeros((config["NUM_ENVS"],)))
+            adv_label_raw = prev_adv_label          # label matching last_obs
+            next_prev_adv_label = adv_label_now * (
+                1.0 - done["__all__"].astype(jnp.float32)
+            )
 
             done_batch = done
             transitions = []
@@ -378,7 +412,8 @@ def make_train(config: dict):
                 ))
 
             runner_state = (
-                train_states, env_state, obsv, done_batch["agents"], h_states, rng
+                train_states, env_state, obsv, done_batch["agents"], h_states,
+                next_prev_adv_label, rng
             )
             return runner_state, transitions
 
@@ -405,7 +440,7 @@ def make_train(config: dict):
             return advantages, advantages + traj_batch.value
 
         # ---- MM update: PCGrad PPO + BCE -----------------------------------
-        def _update_mm(train_state, traj_batch_mm, advantages_mm, targets_mm):
+        def _update_mm(train_state, traj_batch_mm, advantages_mm, targets_mm, rng_update):
             def _update_epoch(update_state, unused):
                 def _update_minibatch(ts, batch_info):
                     init_hstate, traj, adv, tgt = batch_info
@@ -459,16 +494,20 @@ def make_train(config: dict):
                     (ppo_loss, aux_ppo), grads_ppo = jax.value_and_grad(
                         _loss_ppo, has_aux=True
                     )(ts.params)
-                    grads_bce, aux_bce = jax.grad(_loss_bce, has_aux=True)(ts.params)
 
-                    if pcgrad_on:
-                        merged = pcgrad_merge(grads_ppo, grads_bce)
+                    if use_det:
+                        grads_bce, aux_bce = jax.grad(_loss_bce, has_aux=True)(ts.params)
+                        if pcgrad_on:
+                            merged = pcgrad_merge(grads_ppo, grads_bce)
+                        else:
+                            merged = jax.tree.map(lambda a, b: a + b, grads_ppo, grads_bce)
+                        bce_raw = aux_bce
                     else:
-                        merged = jax.tree.map(lambda a, b: a + b, grads_ppo, grads_bce)
+                        merged = grads_ppo
+                        bce_raw = jnp.zeros(())
 
                     ts = ts.apply_gradients(grads=merged)
                     vl, al, ent, ratio, kl, cf = aux_ppo
-                    bce_raw = aux_bce
                     return ts, (ppo_loss, vl, al, ent, ratio, kl, cf, bce_raw)
 
                 ts, init_h, traj, adv, tgt, rng_e = update_state
@@ -497,7 +536,8 @@ def make_train(config: dict):
                 traj_batch_mm,
                 advantages_mm,
                 targets_mm,
-                jax.random.PRNGKey(0),
+                rng_update,   # threaded from the training loop — a fixed PRNGKey(0) here
+                              # replays the same minibatch permutation every update
             )
             update_state, loss_info = jax.lax.scan(
                 _update_epoch, update_state, None, config["UPDATE_EPOCHS"]
@@ -505,7 +545,7 @@ def make_train(config: dict):
             return update_state[0], loss_info
 
         # ---- Adversary update: standard PPO --------------------------------
-        def _update_adv(train_state, traj_batch_adv, advantages_adv, targets_adv):
+        def _update_adv(train_state, traj_batch_adv, advantages_adv, targets_adv, rng_update):
             def _update_epoch(update_state, unused):
                 def _update_minibatch(ts, batch_info):
                     init_hstate, traj, adv, tgt = batch_info
@@ -571,7 +611,7 @@ def make_train(config: dict):
                 traj_batch_adv,
                 advantages_adv,
                 targets_adv,
-                jax.random.PRNGKey(0),
+                rng_update,   # threaded from the training loop (see _update_mm note)
             )
             update_state, loss_info = jax.lax.scan(
                 _update_epoch, update_state, None, config["UPDATE_EPOCHS"]
@@ -581,7 +621,7 @@ def make_train(config: dict):
         # ---- Jitted collect step -------------------------------------------
         @jax.jit
         def _collect_trajectories(runner_state):
-            initial_hstates = runner_state[-2]
+            initial_hstates = runner_state[4]   # h_states slot in the runner tuple
             runner_state, traj_batch = jax.lax.scan(
                 _env_step, runner_state, None, config["NUM_STEPS"]
             )
@@ -617,20 +657,50 @@ def make_train(config: dict):
             checkpoint_dir, orbax_checkpointer, options
         )
 
+        # Reward normalizers (return-scale running std), one per agent type.
+        # Created BEFORE checkpoint restore so a resumed run can recover them —
+        # resetting the scale statistics on resume re-scales the rewards under a
+        # value function trained at the old scale, causing a value-loss transient.
+        normalize_rewards_on = bool(config.get("NORMALIZE_REWARDS", True))
+        ret_rms = [RunningMeanStd() for _ in range(len(train_states))]
+        ret_acc = [np.zeros((config["NUM_ACTORS_PERTYPE"][i],), dtype=np.float64)
+                   for i in range(len(train_states))]
+        checkpoint_every = max(1, int(config.get("CHECKPOINT_EVERY", 50)))
+
         # ---- Resume from checkpoint if one exists --------------------------
         start_update_i = 0
         latest_step = checkpoint_manager.latest_step()
         if latest_step is not None and latest_step < config["NUM_UPDATES"]:
             print(f"Resuming from checkpoint: update {latest_step}/{config['NUM_UPDATES']}")
-            # Restore target must match the saved structure ({"model", "metrics"}),
-            # otherwise orbax rejects the tree mismatch.
-            restored = checkpoint_manager.restore(
-                latest_step,
-                items={
-                    "model": train_states,
-                    "metrics": {"avg_reward": [0.0 for _ in train_states]},
-                },
-            )
+            # Restore target must match the saved structure, otherwise orbax rejects
+            # the tree mismatch. Try the current structure (with normalizer state)
+            # first; fall back to the legacy {"model", "metrics"} layout.
+            metrics_template = {"avg_reward": [0.0 for _ in train_states]}
+            norm_template = {
+                "mean": np.zeros(len(train_states), dtype=np.float64),
+                "var": np.ones(len(train_states), dtype=np.float64),
+                "count": np.zeros(len(train_states), dtype=np.float64),
+                "ret_acc": [np.zeros_like(a) for a in ret_acc],
+            }
+            try:
+                restored = checkpoint_manager.restore(
+                    latest_step,
+                    items={"model": train_states, "metrics": metrics_template,
+                           "normalizer": norm_template},
+                )
+                norm = restored["normalizer"]
+                for i, rms in enumerate(ret_rms):
+                    rms.mean = float(norm["mean"][i])
+                    rms.var = float(norm["var"][i])
+                    rms.count = float(norm["count"][i])
+                ret_acc = [np.asarray(a, dtype=np.float64) for a in norm["ret_acc"]]
+            except Exception:
+                print("  Legacy checkpoint without normalizer state — reward-scale "
+                      "statistics reset; expect a brief value-loss transient.")
+                restored = checkpoint_manager.restore(
+                    latest_step,
+                    items={"model": train_states, "metrics": metrics_template},
+                )
             train_states = restored["model"]
             start_update_i = latest_step
             print(f"  Will continue from update {start_update_i + 1}")
@@ -647,15 +717,11 @@ def make_train(config: dict):
             obsv,
             init_dones_agents,
             hstates,
+            # prev_adv_label carry: label of the adversary action whose injection is
+            # visible in the CURRENT obs. Zero at start — the reset obs is unperturbed.
+            jnp.zeros((config["NUM_ENVS"],), dtype=jnp.float32),
             jax.random.PRNGKey(config["SEED"] + 1),
         )
-
-        # Reward normalizers (return-scale running std), one per agent type
-        normalize_rewards_on = bool(config.get("NORMALIZE_REWARDS", True))
-        ret_rms = [RunningMeanStd() for _ in range(len(train_states))]
-        ret_acc = [np.zeros((config["NUM_ACTORS_PERTYPE"][i],), dtype=np.float64)
-                   for i in range(len(train_states))]
-        checkpoint_every = max(1, int(config.get("CHECKPOINT_EVERY", 50)))
 
         for update_i in range(start_update_i, config["NUM_UPDATES"]):
             phase = (update_i // freeze_n) % 2   # 0 = update adv, 1 = update MM
@@ -663,7 +729,8 @@ def make_train(config: dict):
 
             # Collect trajectories (both agents act)
             runner_state, traj_batch, initial_hstates = _collect_trajectories(runner_state)
-            train_states_curr, env_state_curr, last_obs_curr, last_dones_curr, hstates_curr, rng_curr = runner_state
+            (train_states_curr, env_state_curr, last_obs_curr, last_dones_curr,
+             hstates_curr, prev_label_curr, rng_curr) = runner_state
 
             # Compute last values for GAE
             last_vals = []
@@ -696,7 +763,8 @@ def make_train(config: dict):
                 advantages.append(adv_i)
                 targets.append(tgt_i)
 
-            # Selective update
+            # Selective update (fresh permutation key per update)
+            rng_curr, rng_update = jax.random.split(rng_curr)
             if phase == 0:
                 # Update adversary
                 new_ts_adv, loss_adv = jitted_update_adv(
@@ -704,6 +772,7 @@ def make_train(config: dict):
                     traj_batch[adv_idx],
                     advantages[adv_idx],
                     targets[adv_idx],
+                    rng_update,
                 )
                 train_states_curr = list(train_states_curr)
                 train_states_curr[adv_idx] = new_ts_adv
@@ -715,6 +784,7 @@ def make_train(config: dict):
                     traj_batch[mm_idx],
                     advantages[mm_idx],
                     targets[mm_idx],
+                    rng_update,
                 )
                 train_states_curr = list(train_states_curr)
                 train_states_curr[mm_idx] = new_ts_mm
@@ -726,6 +796,7 @@ def make_train(config: dict):
                 last_obs_curr,
                 last_dones_curr,
                 hstates_curr,
+                prev_label_curr,
                 rng_curr,
             )
 
@@ -792,6 +863,14 @@ def make_train(config: dict):
                 ckpt = {
                     "model": runner_state[0],
                     "metrics": {"avg_reward": [float(jnp.mean(tr.reward)) for tr in traj_batch]},
+                    # Reward-normalizer state — restored on resume so the reward scale
+                    # (and hence the value-function scale) is continuous across restarts.
+                    "normalizer": {
+                        "mean": np.asarray([r.mean for r in ret_rms], dtype=np.float64),
+                        "var": np.asarray([r.var for r in ret_rms], dtype=np.float64),
+                        "count": np.asarray([r.count for r in ret_rms], dtype=np.float64),
+                        "ret_acc": [np.asarray(a, dtype=np.float64) for a in ret_acc],
+                    },
                 }
                 save_args = orbax_utils.save_args_from_target(ckpt)
                 checkpoint_manager.save(update_i + 1, ckpt, save_kwargs={"save_args": save_args})

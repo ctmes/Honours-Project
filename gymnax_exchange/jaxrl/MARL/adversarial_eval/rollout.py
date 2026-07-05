@@ -106,8 +106,18 @@ def build_eval(config: dict, n_envs: int):
                if hasattr(World_EnvironmentConfig(), k) and k not in ["seed", "timePeriod"]},
         ),
     )
+    # Regime labels: load from the same config paths the training loop uses. Without
+    # this the regime input is a constant 0 at evaluation even for regime-trained
+    # models — silently disabling the H4 (regime-conditioning) hypothesis.
+    regime_labels = {}
+    window_to_date = None
+    if config.get("REGIME_LABELS_PATH"):
+        regime_labels = AdversarialMARLEnv.load_regime_labels(config["REGIME_LABELS_PATH"])
+    if config.get("WINDOW_TO_DATE_PATH"):
+        with open(config["WINDOW_TO_DATE_PATH"]) as f:
+            window_to_date = {int(k): v for k, v in json.load(f).items()}
     env = AdversarialMARLEnv(key=init_key, multi_agent_config=ma_config,
-                             regime_labels={}, window_to_date=None)
+                             regime_labels=regime_labels, window_to_date=window_to_date)
 
     config["NUM_ACTORS_PERTYPE"] = [n * n_envs for n in config["NUM_AGENTS_PER_TYPE"]]
     config["NUM_UPDATES"] = max(1, int(config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // n_envs))
@@ -146,7 +156,11 @@ def build_eval(config: dict, n_envs: int):
 
 
 def restore_checkpoint(config, train_states, project: str, run_name: str = "local_run", step=None):
-    """Restore train_states from an orbax checkpoint (matching the saved {model,metrics} tree)."""
+    """Restore train_states from an orbax checkpoint.
+
+    Handles both checkpoint layouts: the current {"model", "metrics", "normalizer"}
+    tree (normalizer state added 2026-07-04) and the legacy {"model", "metrics"} one.
+    """
     ckpt_dir = (f'{config["world_config"]["alphatradePath"]}/checkpoints/MARLCheckpoints'
                 f'/{project}/{run_name}')
     mgr = oxcp.CheckpointManager(ckpt_dir, oxcp.PyTreeCheckpointer())
@@ -154,10 +168,20 @@ def restore_checkpoint(config, train_states, project: str, run_name: str = "loca
         step = mgr.latest_step()
     if step is None:
         raise FileNotFoundError(f"No checkpoint found under {ckpt_dir}")
-    restored = mgr.restore(step, items={
-        "model": train_states,
-        "metrics": {"avg_reward": [0.0 for _ in train_states]},
-    })
+    metrics_template = {"avg_reward": [0.0 for _ in train_states]}
+    n_types = len(train_states)
+    norm_template = {
+        "mean": np.zeros(n_types), "var": np.ones(n_types), "count": np.zeros(n_types),
+        "ret_acc": [np.zeros((config["NUM_ACTORS_PERTYPE"][i],)) for i in range(n_types)],
+    }
+    try:
+        restored = mgr.restore(step, items={
+            "model": train_states, "metrics": metrics_template, "normalizer": norm_template,
+        })
+    except Exception:
+        restored = mgr.restore(step, items={
+            "model": train_states, "metrics": metrics_template,
+        })
     return restored["model"], step
 
 
@@ -188,7 +212,10 @@ def run_rollout(env, networks, train_states, config, attack_mode, rng, n_envs, n
                 for i in range(len(networks))]
     dones = [jnp.zeros((n_envs * nper[i],), dtype=bool) for i in range(len(networks))]
 
-    series = {"ret": [], "inventory": [], "det_prob": [], "adv_label": []}
+    tick_size = float(env.multi_agent_config.world_config.tick_size)
+
+    series = {"ret": [], "inventory": [], "det_prob": [], "adv_label": [],
+              "regime": [], "quote_disp_ticks": []}
 
     for _ in range(n_steps):
         actions, det_mm = [], None
@@ -203,24 +230,44 @@ def run_rollout(env, networks, train_states, config, attack_mode, rng, n_envs, n
             action = action.reshape((n_envs, nper[i], -1))
             actions.append(action.squeeze(-2) if action.ndim > 2 else action.squeeze())
 
-        rng, sk = jax.random.split(rng)
-        obs_list, env_state, reward, done, info = jax.vmap(env.step, in_axes=(0, 0, 0, None))(
-            jax.random.split(sk, n_envs), env_state, actions, env_params)
-
-        # Feed MM detection prob back into adversary state (mirrors training loop).
-        mm_det = det_mm.reshape(n_envs, -1)[:, :1]
+        # Feed the MM detection prob into the adversary-state carrier BEFORE stepping
+        # (mirrors the training loop): the obs built inside env.step then contains
+        # det(obs_t) with a one-step lag, and auto-resets zero it for new episodes.
+        prev_shape = env_state.agent_states[adv_idx].prev_detection_prob.shape
+        mm_det = det_mm.reshape(prev_shape)
         ags = list(env_state.agent_states)
         ags[adv_idx] = env_state.agent_states[adv_idx].replace(prev_detection_prob=mm_det)
         env_state = env_state.replace(agent_states=ags)
 
+        rng, sk = jax.random.split(rng)
+        obs_list, env_state, reward, done, info = jax.vmap(env.step, in_axes=(0, 0, 0, None))(
+            jax.random.split(sk, n_envs), env_state, actions, env_params)
+
         dones = [done["agents"][i].reshape(n_envs * nper[i]) for i in range(len(networks))]
 
-        series["ret"].append(_per_env(info["agents"][mm_idx]["reward_delta_pv"], n_envs))
-        series["inventory"].append(_per_env(info["agents"][mm_idx]["inventory"], n_envs))
+        mm_info = info["agents"][mm_idx]
+        series["ret"].append(_per_env(mm_info["reward_delta_pv"], n_envs))
+        series["inventory"].append(_per_env(mm_info["inventory"], n_envs))
         series["det_prob"].append(np.asarray(det_mm).reshape(n_envs, -1).mean(axis=1))
         series["adv_label"].append(np.asarray(info["adv_label"]).reshape(-1))
+        series["regime"].append(np.asarray(info["regime"]).reshape(-1))
+
+        # Quote displacement (proposal behavioural metric): |quoted mid - true end mid|
+        # in ticks, only on steps where the MM actually posted two-sided quotes.
+        pb = _per_env(mm_info["posted_bid_price"], n_envs)
+        pa = _per_env(mm_info["posted_ask_price"], n_envs)
+        mid = np.asarray(info["world"]["end_mid_price"], dtype=np.float64).reshape(-1)
+        quoted_mid = (pb + pa) / 2.0
+        valid = (pb > 0) & (pa > 0)
+        series["quote_disp_ticks"].append(
+            np.where(valid, np.abs(quoted_mid - mid) / tick_size, np.nan))
 
     return {k: np.stack(v, axis=0) for k, v in series.items()}   # each (n_steps, n_envs)
+
+
+def _nanmean(vals) -> float:
+    v = np.asarray(vals, dtype=np.float64)
+    return float(np.nanmean(v)) if v.size and np.isfinite(v).any() else float("nan")
 
 
 def rollout_metrics(arrays, periods_per_year):
@@ -228,27 +275,74 @@ def rollout_metrics(arrays, periods_per_year):
 
     Risk/behavioural metrics are computed per eval episode (env) then averaged;
     detection AUROC is pooled across the whole rollout (needs both classes).
+
+    Estimand notes for the writeup:
+      - Sharpe/Sortino/CVaR are computed on PER-STEP portfolio-value changes over
+        the eval horizon and sqrt-annualised; per-step returns are autocorrelated,
+        so treat absolute annualised values as indicative — paired cross-config
+        comparisons are the supported inference.
+      - CVaR is the mean of the worst 10% of per-step returns (step-level tail),
+        not an episode- or seed-level tail.
+      - AUROC alignment: det(obs_t) can only see the injection of the adversary's
+        PREVIOUS action (the obs the env returns at t carries a_t's injection into
+        t+1), so probabilities are paired with the previous step's oracle label.
     """
     ret, inv = arrays["ret"], arrays["inventory"]          # (T, n_envs)
     n_envs = ret.shape[1]
-    sharpe = np.nanmean([M.sharpe_ratio(ret[:, e], periods_per_year) for e in range(n_envs)])
-    sortino = np.nanmean([M.sortino_ratio(ret[:, e], periods_per_year) for e in range(n_envs)])
-    cvar = np.nanmean([M.cvar(ret[:, e], 0.10) for e in range(n_envs)])
-    peak_inv = np.nanmean([M.peak_inventory_excursion(inv[:, e]) for e in range(n_envs)])
-    auroc = M.detection_auroc(arrays["det_prob"].ravel(), arrays["adv_label"].ravel())
+    sharpe = _nanmean([M.sharpe_ratio(ret[:, e], periods_per_year) for e in range(n_envs)])
+    sortino = _nanmean([M.sortino_ratio(ret[:, e], periods_per_year) for e in range(n_envs)])
+    softmin = _nanmean([M.softmin_sharpe(ret[:, e], periods_per_year) for e in range(n_envs)])
+    cvar = _nanmean([M.cvar(ret[:, e], 0.10) for e in range(n_envs)])
+    peak_inv = _nanmean([M.peak_inventory_excursion(inv[:, e]) for e in range(n_envs)])
+    inv_sd = _nanmean([M.inventory_sd(inv[:, e]) for e in range(n_envs)])
+
+    qd = arrays.get("quote_disp_ticks")
+    quote_disp = _nanmean(qd) if qd is not None else float("nan")
+
+    # One-step alignment shift (see docstring).
+    auroc = M.detection_auroc(arrays["det_prob"][1:].ravel(),
+                              arrays["adv_label"][:-1].ravel())
+
+    # Regime-split Sortino + absolute gap (H4). NaN when a regime is absent from
+    # the rollout (e.g. regime labels not wired, or a single-regime eval slice).
+    sortino_low = sortino_high = regime_gap = float("nan")
+    reg = arrays.get("regime")
+    if reg is not None and reg.size:
+        lows, highs = [], []
+        for e in range(n_envs):
+            m_high = reg[:, e] > 0.5
+            if (~m_high).sum() >= 2:
+                lows.append(M.sortino_ratio(ret[~m_high, e], periods_per_year))
+            if m_high.sum() >= 2:
+                highs.append(M.sortino_ratio(ret[m_high, e], periods_per_year))
+        sortino_low, sortino_high = _nanmean(lows), _nanmean(highs)
+        if np.isfinite(sortino_low) and np.isfinite(sortino_high):
+            regime_gap = abs(sortino_high - sortino_low)
+
     return {
         "sharpe": float(sharpe),
         "sortino": float(sortino),
+        "softmin_sharpe": float(softmin),
         "cvar": float(cvar),
         "peak_inventory": float(peak_inv),
+        "inventory_sd": float(inv_sd),
+        "quote_displacement": float(quote_disp),
         "auroc": float(auroc),
+        "sortino_lowvol": float(sortino_low),
+        "sortino_highvol": float(sortino_high),
+        "regime_gap": float(regime_gap),
         "mean_attack_rate": float(arrays["adv_label"].mean()),
     }
 
 
-def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=64,
+def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=None,
                         periods_per_year=98280.0, seed=0, step=None, yaml_path=_YAML):
-    """Convenience: load a checkpoint and return {attack_mode -> metric dict}."""
+    """Convenience: load a checkpoint and return {attack_mode -> metric dict}.
+
+    n_steps defaults to the config's NUM_STEPS (the full training episode length)
+    so the terminal unwind — often the largest loss event — is inside the eval
+    window; a truncated horizon silently drops it from Sortino/CVaR.
+    """
     out = {}
     # 'on'/'off' give the attack-on/attack-off PnL & risk metrics; 'mixed' gives a
     # both-classes stream for the detection AUROC (single-class rollouts -> AUROC nan).
@@ -256,7 +350,8 @@ def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=64,
         cfg = set_attack_mode(load_merged_config(yaml_path), mode)
         env, nets, ts_template, cfg = build_eval(cfg, n_envs)
         ts, used_step = restore_checkpoint(cfg, ts_template, project, run_name, step)
-        arrays = run_rollout(env, nets, ts, cfg, mode, jax.random.PRNGKey(seed), n_envs, n_steps)
+        steps = int(n_steps) if n_steps is not None else int(cfg["NUM_STEPS"])
+        arrays = run_rollout(env, nets, ts, cfg, mode, jax.random.PRNGKey(seed), n_envs, steps)
         out[mode] = rollout_metrics(arrays, periods_per_year)
         out[mode]["_checkpoint_step"] = used_step
     return out

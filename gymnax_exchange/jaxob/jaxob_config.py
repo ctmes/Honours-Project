@@ -226,6 +226,11 @@ class SpoofingAgentConfig:
     c_fill: float = 0.001            # accidental-fill (unwind) cost multiplier (eval-time; 0 during unconstrained training)
     c_impact: float = 1.0            # dimensionless: amplifies unwind cost by fraction of book depth consumed (Cont-Kukanov-Stoikov)
     c_reg: float = 0.0005            # regulatory penalty per unit volume spoofed (eval-time; 0 during training)
+    # Oracle-label materiality floor: a step is labelled "attack" only if total injected
+    # volume exceeds this fraction of mean best-quote depth. 0.0 = any positive injection
+    # counts (legacy behaviour); a small positive value stops epsilon-volume injections
+    # from polluting the detection labels / reported AUROC.
+    label_materiality_frac: float = 0.0
 
     # Zero LOB participation
     num_messages_by_agent: int = 0

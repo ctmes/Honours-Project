@@ -15,6 +15,7 @@ Usage (inside the MM update step):
 """
 
 import jax
+import jax.flatten_util  # explicit import — newer JAX no longer exposes this submodule implicitly
 import jax.numpy as jnp
 from typing import Any
 

@@ -65,6 +65,12 @@
 "PROJECT": "v0_AdversarialMM_stability"
 "WANDB_MODE": "disabled"
 
+# NOTE (2026-07-04): SWEEP_PARAMETERS only apply in wandb-sweep mode (WANDB_MODE
+# enabled); the single-run stability config above ignores them. The adversary cost
+# plumbing is now FIXED (costs_total reaches R_adv = -r_mm - costs), so a sweep run
+# with the Spoofing overrides below trains a COST-CONSTRAINED adversary — that
+# contradicts the "unconstrained training / cost model inert" header. Keep c_reg=0
+# and budget large here unless a constrained-training arm is deliberately intended.
 SWEEP_PARAMETERS:
     SEED:
       values: [42]
@@ -81,6 +87,6 @@ SWEEP_PARAMETERS:
         Spoofing:
           parameters:
             budget_per_episode:
-              values: [500.0]
+              values: [1000000.0]
             c_reg:
-              values: [0.0005]
+              values: [0.0]

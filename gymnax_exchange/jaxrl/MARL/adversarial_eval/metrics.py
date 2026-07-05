@@ -128,6 +128,18 @@ def peak_inventory_excursion(inventory) -> float:
     return float(np.max(np.abs(inv)))
 
 
+def inventory_sd(inventory) -> float:
+    """Sample standard deviation of the inventory path (progression-gate criterion).
+
+    The Phase-1 gate bounds vanilla-IPPO inventory SD at a factor of the A-S
+    bound on clean data; this is that statistic for one episode/window.
+    """
+    inv = _flatten(inventory)
+    if inv.size < 2:
+        return np.nan
+    return float(inv.std(ddof=1))
+
+
 def detection_auroc(probs, labels) -> float:
     """Area under the ROC curve for the detection head.
 

@@ -9,6 +9,7 @@ Four tests covering the core mathematical properties:
 """
 
 import jax
+import jax.flatten_util  # explicit import — newer JAX no longer exposes this implicitly
 import jax.numpy as jnp
 import pytest
 from gymnax_exchange.jaxrl.MARL.pcgrad import project_gradient, pcgrad_merge
@@ -105,33 +106,57 @@ def test_jit_compatible():
 
 def test_pcgrad_merge_structure():
     """
-    pcgrad_merge should:
-    - Produce an encoder key that differs from both inputs (projection applied)
-    - Preserve policy head grad in the merged output
-    - Include detection head grad in the merged output
+    pcgrad_merge on trees shaped like real jax.grad output — BOTH trees contain
+    every submodule key, with zero leaves where that loss does not touch the
+    module (jax.grad guarantees this; pcgrad_merge relies on it and rejects
+    asymmetric key sets).
+
+    Checks:
+    - Policy head grad preserved exactly (policy + 0)
+    - Detection head grad preserved exactly (0 + detect)
+    - Exactly anti-parallel encoder grads mutually project to zero
     """
-    # Minimal fake param tree mirroring Flax AttackAwarePolicyNet
     grads_policy = {
         "params": {
             "SharedEncoder_0": {"kernel": jnp.array([[1.0, 0.0], [0.0, 1.0]])},
             "PolicyHead_0":    {"kernel": jnp.array([[2.0, 0.0]])},
+            "DetectionHead_0": {"kernel": jnp.zeros((1, 2))},   # BCE-only module: zero under PPO loss
         }
     }
     grads_detect = {
         "params": {
             "SharedEncoder_0": {"kernel": jnp.array([[-1.0, 0.0], [0.0, -1.0]])},  # anti-parallel
+            "PolicyHead_0":    {"kernel": jnp.zeros((1, 2))},   # PPO-only module: zero under BCE loss
             "DetectionHead_0": {"kernel": jnp.array([[3.0, 0.0]])},
         }
     }
 
     merged = pcgrad_merge(grads_policy, grads_detect)
 
-    # Policy head should be preserved unchanged
+    # Policy head preserved exactly (policy grad + zero detect grad)
     assert jnp.allclose(
         merged["params"]["PolicyHead_0"]["kernel"],
         grads_policy["params"]["PolicyHead_0"]["kernel"],
     )
-    # Detection head should be present
-    assert "DetectionHead_0" in merged["params"]
-    # Encoder should exist
-    assert "SharedEncoder_0" in merged["params"]
+    # Detection head preserved exactly (zero policy grad + detect grad)
+    assert jnp.allclose(
+        merged["params"]["DetectionHead_0"]["kernel"],
+        grads_detect["params"]["DetectionHead_0"]["kernel"],
+    )
+    # Exactly anti-parallel encoder gradients each project to zero, so their sum is zero
+    assert jnp.allclose(merged["params"]["SharedEncoder_0"]["kernel"], 0.0, atol=1e-6)
+
+
+def test_pcgrad_merge_rejects_asymmetric_trees():
+    """Trees with mismatched key sets are NOT valid inputs (real jax.grad never
+    produces them); pcgrad_merge should fail loudly rather than merge silently."""
+    grads_policy = {"params": {
+        "SharedEncoder_0": {"kernel": jnp.ones((2, 2))},
+        "PolicyHead_0": {"kernel": jnp.ones((1, 2))},
+    }}
+    grads_detect = {"params": {
+        "SharedEncoder_0": {"kernel": jnp.ones((2, 2))},
+        "DetectionHead_0": {"kernel": jnp.ones((1, 2))},
+    }}
+    with pytest.raises(KeyError):
+        pcgrad_merge(grads_policy, grads_detect)

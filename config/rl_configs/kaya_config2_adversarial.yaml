@@ -1,0 +1,53 @@
+# ============================================================================
+# PRODUCTION ARM — Config 2 (ADVERSARIAL IPPO): co-trained vs the spoofer,
+# NO detection head, NO regime conditioning (adversarial_mm_cluster_config2.json:
+# use_detection_head / prev_detection_in_obs / regime_conditioning all false —
+# the matching obs channels are zeroed so the obs layout matches arms 1/3).
+#
+# Contrast 1-vs-2 isolates adversarial co-training; 2-vs-3 isolates the
+# detection head + regime conditioning (proposal §4).
+#
+# Launch as a 20-seed job array:   sbatch slurm_sweep.sh kaya_config2_adversarial
+# Everything below is identical to kaya_config1_baseline.yaml except ENV_CONFIG
+# and PROJECT — keep it that way so the contrasts stay clean.
+#
+# !! OPEN DECISION (2026-07-07): see kaya_config1_baseline.yaml — 2024_train
+# (188 days) does not fit GPU-resident on a 16GB V100; pick a subperiod first.
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 8192000     # 1000 updates at NUM_ENVS=16, NUM_STEPS=512
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42                     # overridden per job: SEED=${SLURM_ARRAY_TASK_ID}
+
+# Adversarial-specific (BCE branch skipped: use_detection_head=false in env json)
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_train.json"
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_cluster_config2.json"
+
+"TimePeriod": "2024_train"     # see OPEN DECISION note above
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v1_config2_adversarial"
+"WANDB_MODE": "disabled"

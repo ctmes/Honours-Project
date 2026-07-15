@@ -641,8 +641,13 @@ def make_train(config: dict):
 
         # ---- Checkpoint setup ----------------------------------------------
         agent_type_names = list(env.type_names)
+        # Seed-derived run name so a SLURM job-array of seeds under one PROJECT
+        # writes to disjoint checkpoint dirs (the fixed "local_run" name made all
+        # seeds of an arm collide in one directory). The eval pipeline pairs
+        # configs by seed index, so run_names are ["seed_0", "seed_1", ...] in
+        # the same order for every arm.
         _run_name = (
-            "local_run" if (config["WANDB_MODE"] == "disabled" or run is None)
+            f"seed_{config['SEED']}" if (config["WANDB_MODE"] == "disabled" or run is None)
             else (run.name if run.name else run.id)
         )
         checkpoint_dir = (

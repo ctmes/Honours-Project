@@ -1,0 +1,48 @@
+# ============================================================================
+# EVAL CONFIG — Config-3 (full model) checkpoints on the HELD-OUT 2024_test
+# split. ENV_CONFIG matches the arm's training json (detection + regime obs
+# channels ACTIVE); attack modes forced by set_attack_mode at eval time.
+# The regime obs channel needs REGIME_LABELS_PATH + the TEST window map below,
+# or H4 is silently disabled at evaluation.
+#
+# Used via:  evaluate_seeds(project="v1_config3_full",
+#                           run_names=["seed_0", ...],
+#                           yaml_path="config/rl_configs/eval_2024_test_config3.yaml",
+#                           adv_project="v1_config3_full",
+#                           adv_run_names=["seed_0", ...])   # self = reference
+# ============================================================================
+
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512               # eval horizon default = one full training episode
+"GRU_HIDDEN_DIM": 256
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 8192000
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42
+
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_test.json"
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_cluster.json"
+
+"TimePeriod": "2024_test"
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v1_config3_full"
+"WANDB_MODE": "disabled"

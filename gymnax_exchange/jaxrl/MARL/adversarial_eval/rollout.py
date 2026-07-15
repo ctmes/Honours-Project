@@ -336,12 +336,24 @@ def rollout_metrics(arrays, periods_per_year):
 
 
 def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=None,
-                        periods_per_year=98280.0, seed=0, step=None, yaml_path=_YAML):
+                        periods_per_year=98280.0, seed=0, step=None, yaml_path=_YAML,
+                        adv_project=None, adv_run_name=None, adv_step=None):
     """Convenience: load a checkpoint and return {attack_mode -> metric dict}.
 
     n_steps defaults to the config's NUM_STEPS (the full training episode length)
     so the terminal unwind — often the largest loss event — is inside the eval
     window; a truncated horizon silently drops it from Sortino/CVaR.
+
+    Common-adversary evaluation (internal validity for H1)
+    ------------------------------------------------------
+    By default BOTH agents are restored from `run_name`, i.e. each MM faces the
+    adversary it was co-trained with. Across configs that confounds the H1
+    contrast: the config-1 baseline would face an UNTRAINED adversary while the
+    defended configs face their own trained ones. Pass `adv_run_name` (and
+    usually `adv_project`, e.g. the config-3 arm) to overwrite the adversary's
+    parameters from a reference checkpoint so every arm is attacked by the SAME
+    adversary. Pair reference seeds with MM seeds by index (seed_i vs seed_i)
+    to preserve the paired-across-configs design.
     """
     out = {}
     # 'on'/'off' give the attack-on/attack-off PnL & risk metrics; 'mixed' gives a
@@ -350,8 +362,48 @@ def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=None,
         cfg = set_attack_mode(load_merged_config(yaml_path), mode)
         env, nets, ts_template, cfg = build_eval(cfg, n_envs)
         ts, used_step = restore_checkpoint(cfg, ts_template, project, run_name, step)
+        adv_used_step = None
+        if adv_run_name is not None:
+            # AdversaryNet has the same architecture in every arm, so the reference
+            # checkpoint restores into the same template; only the adversary slot is
+            # swapped — the MM under evaluation keeps its own parameters.
+            ts_ref, adv_used_step = restore_checkpoint(
+                cfg, ts_template, adv_project or project, adv_run_name, adv_step)
+            ts = list(ts)
+            ts[env._adv_idx] = ts_ref[env._adv_idx]
         steps = int(n_steps) if n_steps is not None else int(cfg["NUM_STEPS"])
         arrays = run_rollout(env, nets, ts, cfg, mode, jax.random.PRNGKey(seed), n_envs, steps)
         out[mode] = rollout_metrics(arrays, periods_per_year)
         out[mode]["_checkpoint_step"] = used_step
+        if adv_run_name is not None:
+            out[mode]["_adv_checkpoint"] = f"{adv_project or project}/{adv_run_name}@{adv_used_step}"
+    return out
+
+
+def evaluate_fixed_policy(n_envs=8, n_steps=None, periods_per_year=98280.0,
+                          seed=0, yaml_path=_YAML):
+    """Evaluate a fixed (non-learned) MM policy — no checkpoint restore.
+
+    The MM's behaviour must come from the env config, e.g. the Avellaneda-Stoikov
+    arm: action_space="AvSt" with fixed_action_setting=true pins the closed-form
+    A-S rule regardless of the (freshly initialised) network output. This is the
+    config-1 A-S half of the progression gate. Only the *_off metrics are
+    meaningful for the gate; the adversary in 'on'/'mixed' modes is untrained
+    (and A-S quotes off the true book, so perturbed observations don't move it),
+    and the detection AUROC is chance by construction.
+    """
+    out = {}
+    for mode in ("on", "off", "mixed"):
+        cfg = set_attack_mode(load_merged_config(yaml_path), mode)
+        env, nets, ts, cfg = build_eval(cfg, n_envs)
+        mm_cfg = env.list_of_agents_configs[env._mm_idx]
+        if not getattr(mm_cfg, "fixed_action_setting", False):
+            raise ValueError(
+                "evaluate_fixed_policy requires an env config with "
+                "fixed_action_setting=true for the MM (e.g. the AvSt baseline json); "
+                f"got fixed_action_setting={getattr(mm_cfg, 'fixed_action_setting', None)}")
+        steps = int(n_steps) if n_steps is not None else int(cfg["NUM_STEPS"])
+        arrays = run_rollout(env, nets, ts, cfg, mode, jax.random.PRNGKey(seed), n_envs, steps)
+        out[mode] = rollout_metrics(arrays, periods_per_year)
+        out[mode]["_checkpoint_step"] = None
     return out

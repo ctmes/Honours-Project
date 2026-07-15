@@ -32,7 +32,9 @@ from typing import Mapping, Sequence
 
 import numpy as np
 
-from gymnax_exchange.jaxrl.MARL.adversarial_eval.rollout import evaluate_checkpoint
+from gymnax_exchange.jaxrl.MARL.adversarial_eval.rollout import (
+    evaluate_checkpoint, evaluate_fixed_policy,
+)
 from gymnax_exchange.jaxrl.MARL.adversarial_eval.stats import (
     holm_adjust, tost_paired, one_sample_comparison,
 )
@@ -49,22 +51,60 @@ _RISK_METRICS = ("sharpe", "sortino", "softmin_sharpe", "cvar",
 _DEFAULT_PRIMARY = ("sortino_on", "sharpe_on", "cvar_on", "auroc")
 
 
-def evaluate_seeds(project, run_names: Sequence[str], n_envs=8, n_steps=None,
-                   periods_per_year=98280.0, seeds: Sequence[int] | None = None,
-                   step=None) -> dict[str, np.ndarray]:
+def evaluate_seeds(project=None, run_names: Sequence[str] | None = None, n_envs=8,
+                   n_steps=None, periods_per_year=98280.0,
+                   seeds: Sequence[int] | None = None, step=None,
+                   yaml_path: str | None = None,
+                   adv_project: str | None = None,
+                   adv_run_names: Sequence[str] | None = None,
+                   adv_step=None,
+                   fixed_policy: bool = False,
+                   n_seeds: int | None = None) -> dict[str, np.ndarray]:
     """Roll out every seed (checkpoint run) of one config -> {metric -> array-over-seeds}.
 
     `run_names` are the checkpoint run directories for this config's seeds (all under the
     same `project`), ordered by training seed — the SAME order for every config, because
-    downstream paired tests pair by index. `seeds` are the rollout RNG seeds (defaults to
-    range(len(run_names)) so eval randomness is also matched across configs).
+    downstream paired tests pair by index. With seed-derived checkpoint naming these are
+    ["seed_0", "seed_1", ...]. `seeds` are the rollout RNG seeds (defaults to
+    range(n) so eval randomness is also matched across configs).
+
+    `yaml_path` selects the ARM-MATCHED eval config (e.g. eval_2024_test_config2.yaml):
+    the env must zero the same obs channels the arm zeroed in training, or the restored
+    network sees inputs from a different distribution than it was trained on.
+
+    Common adversary (H1 internal validity): pass `adv_project` + `adv_run_names`
+    (ordered like `run_names`) to attack every arm with the same reference adversary —
+    typically the config-3 arm's adversaries, paired by seed index. Omit for the
+    self-play default (each MM vs its own co-trained adversary).
+
+    A-S baseline: `fixed_policy=True` skips checkpoint restore entirely (env config
+    must pin the MM via fixed_action_setting, see evaluate_fixed_policy); give
+    `n_seeds` (or `seeds`) instead of `run_names`.
     """
-    if seeds is None:
-        seeds = list(range(len(run_names)))
+    kw = {} if yaml_path is None else {"yaml_path": yaml_path}
+    if fixed_policy:
+        if seeds is None:
+            seeds = list(range(n_seeds if n_seeds is not None else 20))
+        runs = [(None, sd, None) for sd in seeds]
+    else:
+        if run_names is None:
+            raise ValueError("run_names is required unless fixed_policy=True")
+        if seeds is None:
+            seeds = list(range(len(run_names)))
+        if adv_run_names is not None and len(adv_run_names) != len(run_names):
+            raise ValueError("adv_run_names must align 1:1 with run_names "
+                             f"(got {len(adv_run_names)} vs {len(run_names)})")
+        runs = [(rn, sd, adv_run_names[i] if adv_run_names is not None else None)
+                for i, (rn, sd) in enumerate(zip(run_names, seeds))]
     rows = []
-    for run_name, sd in zip(run_names, seeds):
-        res = evaluate_checkpoint(project, run_name, n_envs, n_steps,
-                                  periods_per_year, seed=sd, step=step)
+    for run_name, sd, adv_rn in runs:
+        if fixed_policy:
+            res = evaluate_fixed_policy(n_envs, n_steps, periods_per_year, seed=sd, **kw)
+        else:
+            res = evaluate_checkpoint(project, run_name, n_envs, n_steps,
+                                      periods_per_year, seed=sd, step=step,
+                                      adv_project=adv_project, adv_run_name=adv_rn,
+                                      adv_step=adv_step, **kw)
         row = {}
         for m in _RISK_METRICS:
             row[f"{m}_on"] = res["on"][m]

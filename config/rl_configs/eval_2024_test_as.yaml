@@ -1,0 +1,49 @@
+# ============================================================================
+# EVAL CONFIG — Avellaneda-Stoikov fixed-policy baseline on the HELD-OUT
+# 2024_test split. NO checkpoint: use evaluate_fixed_policy /
+# evaluate_seeds(fixed_policy=True, yaml_path=this).
+#
+# ENV_CONFIG pins the MM to the closed-form A-S rule (action_space=AvSt,
+# fixed_action_setting=true). Only the *_off metrics are meaningful — A-S
+# quotes off the true book, so the observation-space attack cannot move it,
+# and its "detection AUROC" is chance by construction. This arm supplies the
+# A-S half of the Phase-1 progression gate (gate wired to *_off keys).
+#
+# Used via:  evaluate_seeds(fixed_policy=True, n_seeds=20,
+#                           yaml_path="config/rl_configs/eval_2024_test_as.yaml")
+# ============================================================================
+
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512               # eval horizon default = one full training episode
+"GRU_HIDDEN_DIM": 256
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 8192000
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42
+
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_test.json"
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_cluster_as.json"
+
+"TimePeriod": "2024_test"
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "baseline_avellaneda_stoikov"
+"WANDB_MODE": "disabled"

@@ -1,0 +1,51 @@
+# ============================================================================
+# PRODUCTION ARM — Config 3 (FULL MODEL): adversarial co-training + detection
+# head (PCGrad PPO+BCE) + regime conditioning (adversarial_mm_cluster.json:
+# all three flags true). This arm's trained adversaries are also the COMMON
+# reference adversaries for evaluation — every arm is attacked by
+# v1_config3_full/seed_i at eval so the H1 contrast is not confounded by
+# attacker strength (see adversarial_eval/run_evaluation.py `adv_run_names`).
+#
+# Launch as a 20-seed job array:   sbatch slurm_sweep.sh kaya_config3_full
+# Identical to kaya_config1_baseline.yaml except ENV_CONFIG and PROJECT.
+#
+# !! OPEN DECISION (2026-07-07): see kaya_config1_baseline.yaml — 2024_train
+# (188 days) does not fit GPU-resident on a 16GB V100; pick a subperiod first.
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 8192000     # 1000 updates at NUM_ENVS=16, NUM_STEPS=512
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42                     # overridden per job: SEED=${SLURM_ARRAY_TASK_ID}
+
+# Adversarial-specific
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_train.json"
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_cluster.json"
+
+"TimePeriod": "2024_train"     # see OPEN DECISION note above
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v1_config3_full"
+"WANDB_MODE": "disabled"

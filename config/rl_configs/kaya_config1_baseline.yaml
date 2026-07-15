@@ -1,0 +1,62 @@
+# ============================================================================
+# PRODUCTION ARM — Config 1 (BASELINE): vanilla IPPO market maker, no attack.
+#
+# Proposal §4 agent configurations: (1) baseline, (2) adversarial co-trained,
+# (3) full model. This arm trains the MM with the telegraph gate pinned OFF and
+# a zero adversary budget (adversarial_mm_cluster_config1.json), detection head
+# and regime/detection obs channels disabled — the clean-market floor for the
+# 1-vs-2 contrast. The adversary still occupies its phase-0 updates (learning
+# nothing) so the MM receives the SAME number of updates as in arms 2/3.
+#
+# Launch as a 20-seed job array:   sbatch slurm_sweep.sh kaya_config1_baseline
+# Resume after wall-time:          resubmit the same command (checkpoint resume).
+#
+# Sizing (V100 16GB, measured 2026-06: ~68 s/update at 16 envs x 512 steps):
+#   TOTAL_TIMESTEPS 8192000 = exactly 1000 updates ~= 19h, inside the 24h wall.
+#
+# !! OPEN DECISION (2026-07-07): TimePeriod 2024_train is 188 days ~= 600-800M
+# messages ~= 19-26 GB int32 — it does NOT fit GPU-resident on a 16GB V100.
+# Before launching, either pick a subperiod (e.g. a quarter) as TimePeriod or
+# resolve the data-residency question. The 2024_test eval split (64 days,
+# 275M msgs, ~8.8GB int32) is near the practical ceiling.
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 8192000     # 1000 updates at NUM_ENVS=16, NUM_STEPS=512
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42                     # overridden per job: SEED=${SLURM_ARRAY_TASK_ID}
+
+# Adversarial-specific (detection/PCGrad inert in this arm: use_detection_head
+# is false in the env config, so the BCE branch is skipped entirely)
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+# Regime labels are loaded for logging/eval splits in every arm; the MM's
+# regime obs channel is only active in config 3 (regime_conditioning flag).
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_train.json"
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_cluster_config1.json"
+
+"TimePeriod": "2024_train"     # see OPEN DECISION note above
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v1_config1_baseline"
+"WANDB_MODE": "disabled"

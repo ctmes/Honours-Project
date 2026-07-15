@@ -72,12 +72,15 @@ def main():
     ap.add_argument("--atpath", default=".")
     ap.add_argument("--cache", default=None, help="explicit .npz path (overrides auto-find)")
     ap.add_argument("--out", default=".")
+    ap.add_argument("--out-file", default=None,
+                    help="output filename (default: window_to_date_<period>.json, "
+                         "matching the WINDOW_TO_DATE_PATH values in the production yamls)")
     args = ap.parse_args()
 
     w2d, dates, cache = build_window_to_date(
         args.data_path, args.stock, args.period, args.atpath, args.cache)
 
-    out = Path(args.out) / "window_to_date.json"
+    out = Path(args.out) / (args.out_file or f"window_to_date_{args.period}.json")
     out.write_text(json.dumps(w2d, indent=2))
 
     # windows-per-day distribution (sanity)

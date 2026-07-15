@@ -1246,6 +1246,14 @@ class MarketMakingAgent():
         '''AvST action space: Discrete selections to paramterise K in the AvSt forumla.
         0-7, with lower giving more aggresive bid and asks
         '''
+        # A single categorical selection may arrive as shape () or (1,) depending on
+        # the caller's batching; make it a scalar so the price arithmetic stays 0-d
+        # and the final jnp.stack sees uniformly 1-D message columns.
+        action = jnp.asarray(action).ravel()[0]
+        if self.cfg.fixed_action_setting == True:
+            # Pure Avellaneda-Stoikov baseline: pin the risk-aversion selection so the
+            # quotes come from the closed-form A-S rule alone (network output ignored).
+            action = jnp.asarray(self.cfg.fixed_action, dtype=jnp.int32)
         # Use the most recent best_ask and best_bid values
         # best_ask = jnp.int32((world_state.best_asks[-1][0] // self.world_config.tick_size) * self.world_config.tick_size)
         # best_bid = jnp.int32((world_state.best_bids[-1][0] // self.world_config.tick_size) * self.world_config.tick_size)
@@ -1293,7 +1301,10 @@ class MarketMakingAgent():
         normalized_time = time_left / self.world_config.episode_time
 
         #Reservation price
-        res_price = (mid_price - ((agent_state.inventory)) * gamma * (variance) * normalized_time)
+        # inventory can carry a stray (1,) dim depending on state construction; keep the
+        # price arithmetic 0-d or the 2-message stack below becomes (2,1) and fails.
+        inventory = jnp.asarray(agent_state.inventory).ravel()[0]
+        res_price = (mid_price - inventory * gamma * (variance) * normalized_time)
 
         #Spread
         spread = (gamma*variance*normalized_time + (2/gamma) * jnp.log(1 + gamma/k))#*self.world_config.tick_size

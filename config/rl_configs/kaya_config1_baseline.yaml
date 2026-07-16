@@ -8,17 +8,20 @@
 # 1-vs-2 contrast. The adversary still occupies its phase-0 updates (learning
 # nothing) so the MM receives the SAME number of updates as in arms 2/3.
 #
-# Launch as a 20-seed job array:   sbatch slurm_sweep.sh kaya_config1_baseline
-# Resume after wall-time:          resubmit the same command (checkpoint resume).
+# Launch (20-seed chained sweep):   ./submit_chain.sh kaya_config1_baseline
+# Resume after wall-kill:           resubmit the same phase (checkpoint resume;
+#                                   completed phases exit immediately).
 #
-# Sizing (V100 16GB, measured 2026-06: ~68 s/update at 16 envs x 512 steps):
-#   TOTAL_TIMESTEPS 8192000 = exactly 1000 updates ~= 19h, inside the 24h wall.
-#
-# !! OPEN DECISION (2026-07-07): TimePeriod 2024_train is 188 days ~= 600-800M
-# messages ~= 19-26 GB int32 — it does NOT fit GPU-resident on a 16GB V100.
-# Before launching, either pick a subperiod (e.g. a quarter) as TimePeriod or
-# resolve the data-residency question. The 2024_test eval split (64 days,
-# 275M msgs, ~8.8GB int32) is near the practical ceiling.
+# CHAINED TRAINING (decision 2026-07-16: use ALL of Jan-Sep 2024). The full
+# train pool is ~22 GB int32 on-device and cannot fit a 16 GB V100, so each
+# seed trains as a resumed chain over quarter caches (~7-9 GB each):
+#   Q1: updates 0-333 -> Q2: 334-667 -> Q3: 668-1001   (334 x 3 = 1002 updates)
+# This yaml carries the PHASE-1 (Q1) values; slurm_sweep.sh overrides
+# TimePeriod / WINDOW_TO_DATE_PATH / TOTAL_TIMESTEPS for q2/q3.
+# ANNEAL_TOTAL_UPDATES pins the LR anneal to the full 1002-update chain.
+# Methodology note: quarters are seen in calendar order (a curriculum), not
+# sampled uniformly over Jan-Sep — identical across arms, so contrasts hold.
+# Sizing: ~68 s/update (V100, 16 envs x 512 steps) => ~6.3h per phase.
 # ============================================================================
 
 # List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
@@ -27,7 +30,8 @@
 "NUM_STEPS": 512
 "GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
 "FC_DIM_SIZE": 256
-"TOTAL_TIMESTEPS": 8192000     # 1000 updates at NUM_ENVS=16, NUM_STEPS=512
+"TOTAL_TIMESTEPS": 2736128     # PHASE 1 (Q1) budget: 334 updates; q2/q3 phases override
+"ANNEAL_TOTAL_UPDATES": 1002   # LR anneal spans the whole Q1->Q2->Q3 chain
 "UPDATE_EPOCHS": 4
 "NUM_MINIBATCHES": 4
 "GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
@@ -51,11 +55,11 @@
 # Regime labels are loaded for logging/eval splits in every arm; the MM's
 # regime obs channel is only active in config 3 (regime_conditioning flag).
 "REGIME_LABELS_PATH": "regime_labels.json"
-"WINDOW_TO_DATE_PATH": "window_to_date_2024_train.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_q1.json"   # phase 1; overridden per phase
 
 "ENV_CONFIG": "config/env_configs/adversarial_mm_cluster_config1.json"
 
-"TimePeriod": "2024_train"     # see OPEN DECISION note above
+"TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
 
 "ENTITY": "your-wandb-entity"
 "PROJECT": "v1_config1_baseline"

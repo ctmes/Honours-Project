@@ -232,7 +232,11 @@ def make_train(config: dict):
         # unfrozen — under alternating freezes that is ~half of NUM_UPDATES — so the
         # anneal denominator is the per-agent update budget, not the global one.
         # (With the global denominator the LR would only ever decay to ~0.5*LR.)
-        updates_per_agent = max(1, config["NUM_UPDATES"] // 2)
+        # For CHAINED runs (quarter-by-quarter resume with growing NUM_UPDATES per
+        # phase), ANNEAL_TOTAL_UPDATES pins the denominator to the whole chain's
+        # update budget; without it phase 1 would anneal the LR to zero by its end.
+        anneal_updates = int(config.get("ANNEAL_TOTAL_UPDATES") or config["NUM_UPDATES"])
+        updates_per_agent = max(1, anneal_updates // 2)
         frac = (
             1.0
             - (count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"]))
@@ -710,10 +714,15 @@ def make_train(config: dict):
             start_update_i = latest_step
             print(f"  Will continue from update {start_update_i + 1}")
         elif latest_step is not None:
+            # Idempotent re-run: this phase/seed is already trained to (at least)
+            # this config's budget. Starting fresh here would retrain update 0..N
+            # INTO THE SAME checkpoint dir, corrupting a chained lineage — exit
+            # instead (the behaviour slurm_sweep.sh documents for requeued tasks).
             print(
-                f"Existing checkpoint at update {latest_step} >= NUM_UPDATES "
-                f"{config['NUM_UPDATES']}; ignoring it and starting fresh."
+                f"Checkpoint at update {latest_step} >= NUM_UPDATES "
+                f"{config['NUM_UPDATES']}: already complete, nothing to do."
             )
+            return {"runner_state": None, "already_complete": True}
 
         # ---- Main training loop (Python-level) ----------------------------
         runner_state = (

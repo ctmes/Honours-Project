@@ -78,7 +78,28 @@ def test_train_and_eval_periods(name):
     assert train["TimePeriod"] != ev["TimePeriod"], "eval must be out-of-sample"
     assert ev["TimePeriod"] == "2024_test"
     assert "2024_test" in ev["WINDOW_TO_DATE_PATH"]
-    assert "2024_train" in train["WINDOW_TO_DATE_PATH"]
+    # Chained training: the yaml carries phase 1 (Q1); q2/q3 are slurm overrides.
+    assert train["TimePeriod"] == "2024_q1"
+    assert train["TimePeriod"] in train["WINDOW_TO_DATE_PATH"], (
+        "window map must match the phase TimePeriod")
+
+
+@pytest.mark.parametrize("name", ["config1", "config2", "config3"])
+def test_chain_phase_math(name):
+    """Q1->Q2->Q3 chain: 334 updates/phase, LR anneal pinned to the chain total.
+
+    slurm_sweep.sh hard-codes the cumulative phase budgets (2736128 / 5472256 /
+    8208384); the yaml must carry phase 1 and an ANNEAL_TOTAL_UPDATES equal to
+    the full chain, or phase 1 anneals the LR to zero by update 334.
+    """
+    cfg = _yaml(TRAIN_YAMLS[name])
+    per_update = cfg["NUM_STEPS"] * cfg["NUM_ENVS"]
+    assert cfg["TOTAL_TIMESTEPS"] // per_update == 334
+    assert cfg["ANNEAL_TOTAL_UPDATES"] == 3 * 334
+    # The slurm-side cumulative budgets must be exact multiples too.
+    for cum in (2736128, 5472256, 8208384):
+        assert cum % per_update == 0
+    assert 8208384 // per_update == cfg["ANNEAL_TOTAL_UPDATES"]
 
 
 def test_eval_config1_uses_attack_capable_env_with_zeroed_channels():

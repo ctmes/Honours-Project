@@ -7,12 +7,12 @@
 # Contrast 1-vs-2 isolates adversarial co-training; 2-vs-3 isolates the
 # detection head + regime conditioning (proposal §4).
 #
-# Launch as a 20-seed job array:   sbatch slurm_sweep.sh kaya_config2_adversarial
+# Launch (20-seed chained sweep):   ./submit_chain.sh kaya_config2_adversarial
 # Everything below is identical to kaya_config1_baseline.yaml except ENV_CONFIG
 # and PROJECT — keep it that way so the contrasts stay clean.
 #
-# !! OPEN DECISION (2026-07-07): see kaya_config1_baseline.yaml — 2024_train
-# (188 days) does not fit GPU-resident on a 16GB V100; pick a subperiod first.
+# CHAINED TRAINING (decision 2026-07-16): Q1 -> Q2 -> Q3 resumed phases,
+# 334 updates each (1002 total); see kaya_config1_baseline.yaml for details.
 # ============================================================================
 
 # List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
@@ -21,7 +21,8 @@
 "NUM_STEPS": 512
 "GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
 "FC_DIM_SIZE": 256
-"TOTAL_TIMESTEPS": 8192000     # 1000 updates at NUM_ENVS=16, NUM_STEPS=512
+"TOTAL_TIMESTEPS": 2736128     # PHASE 1 (Q1) budget: 334 updates; q2/q3 phases override
+"ANNEAL_TOTAL_UPDATES": 1002   # LR anneal spans the whole Q1->Q2->Q3 chain
 "UPDATE_EPOCHS": 4
 "NUM_MINIBATCHES": 4
 "GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
@@ -42,11 +43,11 @@
 "NORMALIZE_REWARDS": true
 "CHECKPOINT_EVERY": 50
 "REGIME_LABELS_PATH": "regime_labels.json"
-"WINDOW_TO_DATE_PATH": "window_to_date_2024_train.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_q1.json"   # phase 1; overridden per phase
 
 "ENV_CONFIG": "config/env_configs/adversarial_mm_cluster_config2.json"
 
-"TimePeriod": "2024_train"     # see OPEN DECISION note above
+"TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
 
 "ENTITY": "your-wandb-entity"
 "PROJECT": "v1_config2_adversarial"

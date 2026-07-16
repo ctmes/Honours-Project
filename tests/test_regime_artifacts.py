@@ -20,6 +20,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LABELS = os.path.join(ROOT, "regime_labels.json")
 TRAIN_MAP = os.path.join(ROOT, "window_to_date_2024_train.json")
 TEST_MAP = os.path.join(ROOT, "window_to_date_2024_test.json")
+QUARTER_MAPS = {
+    "q1": os.path.join(ROOT, "window_to_date_2024_q1.json"),
+    "q2": os.path.join(ROOT, "window_to_date_2024_q2.json"),
+    "q3": os.path.join(ROOT, "window_to_date_2024_q3.json"),
+}
+QUARTER_RANGES = {
+    "q1": ("2024-01-01", "2024-03-31"),
+    "q2": ("2024-04-01", "2024-06-30"),
+    "q3": ("2024-07-01", "2024-09-30"),
+}
 
 
 def _load(path):
@@ -35,7 +45,9 @@ def test_labels_cover_2024_and_are_binary():
         "regime_labels.json must be the 2024 label set (window maps are 2024)")
 
 
-@pytest.mark.parametrize("map_path,name", [(TRAIN_MAP, "train"), (TEST_MAP, "test")])
+@pytest.mark.parametrize("map_path,name",
+                         [(TRAIN_MAP, "train"), (TEST_MAP, "test")]
+                         + [(p, n) for n, p in QUARTER_MAPS.items()])
 def test_window_map_aligns_with_labels(map_path, name):
     if not os.path.exists(map_path):
         pytest.skip(f"{os.path.basename(map_path)} not generated yet "
@@ -67,3 +79,31 @@ def test_train_and_test_maps_do_not_overlap():
         "train/test date leakage: " + ", ".join(sorted(train_dates & test_dates)))
     assert max(train_dates) < "2024-10-01" <= min(test_dates), (
         "expected the Oct-1 holdout boundary between train and test")
+
+
+def test_quarter_maps_partition_the_training_pool():
+    """Chained-training invariants: Q1/Q2/Q3 are disjoint, stay inside their
+    calendar ranges, never touch the Q4 holdout, and together cover EXACTLY the
+    master training pool (no day silently dropped by the slicer)."""
+    if not all(os.path.exists(p) for p in QUARTER_MAPS.values()):
+        pytest.skip("quarter maps not generated yet (slice_period_cache.py + "
+                    "build_window_to_date.py)")
+    if not os.path.exists(TRAIN_MAP):
+        pytest.skip("master train map missing")
+    q_dates = {}
+    for name, path in QUARTER_MAPS.items():
+        wmap = _load(path)
+        idx = sorted(int(k) for k in wmap)
+        assert idx == list(range(len(idx))), f"{name}: window indices not dense"
+        dates = set(wmap.values())
+        lo, hi = QUARTER_RANGES[name]
+        assert min(dates) >= lo and max(dates) <= hi, (
+            f"{name}: dates escape {lo}..{hi}")
+        q_dates[name] = dates
+    assert not (q_dates["q1"] & q_dates["q2"]) and not (q_dates["q2"] & q_dates["q3"]) \
+        and not (q_dates["q1"] & q_dates["q3"]), "quarters overlap"
+    union = q_dates["q1"] | q_dates["q2"] | q_dates["q3"]
+    train_dates = set(_load(TRAIN_MAP).values())
+    assert union == train_dates, (
+        f"quarters do not exactly cover the training pool: "
+        f"missing={sorted(train_dates - union)} extra={sorted(union - train_dates)}")

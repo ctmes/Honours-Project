@@ -1,0 +1,40 @@
+{
+  "_comment": "PRE-REGISTERED analysis decisions for the 3-arm x 20-seed study. Frozen BEFORE any evaluation result is computed (sweep launched 2026-07-16; no checkpoint has been evaluated). run_production_eval.py refuses to run confirmatory tests unless signed_off is true - set it only after supervisor agreement, and do not edit values afterwards. Any post-hoc change must be reported as such in the thesis.",
+
+  "signed_off": false,
+  "signed_off_by": null,
+  "signed_off_date": null,
+
+  "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "checkpoint_step": 1002,
+
+  "primary_metrics": ["sortino_on", "sharpe_on", "cvar_on", "auroc"],
+  "alpha": 0.05,
+  "multiplicity": "holm_within_contrast",
+
+  "equivalence_margins": {
+    "_comment": "H2 (no clean-data degradation) TOST margins on mean paired difference, defended-vs-baseline, attack-off condition. PROPOSED values = 10% of the A-S clean-data anchor from the Phase-1 gate run; confirm with Dr Wen before sign-off.",
+    "sortino_off": 0.25,
+    "sharpe_off": 0.25
+  },
+
+  "progression_gate": {
+    "sharpe_margin": 0.5,
+    "sortino_margin": 0.5,
+    "inv_sd_factor": 2.0
+  },
+
+  "common_adversary": {
+    "_comment": "Every arm evaluated under attack faces the config-3 arm's adversary, paired by seed index (internal validity for H1).",
+    "project": "v1_config3_full",
+    "run_names": "seed_<i>"
+  },
+
+  "periods_per_year": 10833681,
+  "periods_per_year_derivation": "2024_test cache: 275,141,175 msgs / 64 days = 4,299,081 msgs/day; at 100 msgs/step -> 42,991 steps/day x 252 trading days = 10,833,681 return-steps/year. Annualisation rescales Sharpe/Sortino uniformly across arms; paired contrasts are invariant to it.",
+
+  "label_materiality_frac": 0.0,
+  "label_materiality_note": "0.0 = any positive injected volume counts as an attack step (legacy behaviour, matches training).",
+
+  "training_schedule_note": "All arms trained on chained quarters Q1->Q2->Q3 of 2024 (calendar-ordered curriculum, identical across arms); evaluation exclusively on the untouched 2024-10-01..2024-12-31 holdout."
+}

@@ -315,7 +315,12 @@ def make_train(config: dict):
         obsv, env_state = jax.vmap(env.reset, in_axes=(0, None))(reset_rng, env_params)
 
         # ---- Inner: trajectory collection step -----------------------------
-        def _env_step(runner_state, unused):
+        # env_params is an explicit argument (threaded from _collect_trajectories),
+        # NOT a closure capture: a closure variable is baked into the jitted
+        # executable as a compile-time constant, which duplicates the entire
+        # message dataset on the GPU (~6.6-8.9 GB per quarter — the 2026-07-16
+        # sweep OOM). As a traced argument it is referenced, not copied.
+        def _env_step(runner_state, unused, env_params):
             (train_states, env_state, last_obs, last_done, h_states,
              prev_adv_label, rng) = runner_state
 
@@ -624,10 +629,11 @@ def make_train(config: dict):
 
         # ---- Jitted collect step -------------------------------------------
         @jax.jit
-        def _collect_trajectories(runner_state):
+        def _collect_trajectories(runner_state, env_params):
             initial_hstates = runner_state[4]   # h_states slot in the runner tuple
             runner_state, traj_batch = jax.lax.scan(
-                _env_step, runner_state, None, config["NUM_STEPS"]
+                lambda rs, x: _env_step(rs, x, env_params),
+                runner_state, None, config["NUM_STEPS"]
             )
             return runner_state, traj_batch, initial_hstates
 
@@ -742,7 +748,8 @@ def make_train(config: dict):
             print(f"Update {update_i + 1}/{config['NUM_UPDATES']}  phase={'adv' if phase==0 else 'mm'}")
 
             # Collect trajectories (both agents act)
-            runner_state, traj_batch, initial_hstates = _collect_trajectories(runner_state)
+            runner_state, traj_batch, initial_hstates = _collect_trajectories(
+                runner_state, env_params)
             (train_states_curr, env_state_curr, last_obs_curr, last_dones_curr,
              hstates_curr, prev_label_curr, rng_curr) = runner_state
 

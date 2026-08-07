@@ -298,6 +298,12 @@ def rollout_metrics(arrays, periods_per_year):
 
     qd = arrays.get("quote_disp_ticks")
     quote_disp = _nanmean(qd) if qd is not None else float("nan")
+    # Fraction of steps with a two-sided quote posted. The Spooner-family reward
+    # is not volume-normalised, and Mohl et al. (2511.02136 §5.2) observe learned
+    # MMs collapsing toward never trading — which silently flatters risk-adjusted
+    # metrics. Reporting presence makes that failure mode visible per arm.
+    quote_presence = (float(np.mean(np.isfinite(np.asarray(qd, dtype=np.float64))))
+                      if qd is not None and np.asarray(qd).size else float("nan"))
 
     # One-step alignment shift (see docstring).
     auroc = M.detection_auroc(arrays["det_prob"][1:].ravel(),
@@ -327,6 +333,7 @@ def rollout_metrics(arrays, periods_per_year):
         "peak_inventory": float(peak_inv),
         "inventory_sd": float(inv_sd),
         "quote_displacement": float(quote_disp),
+        "quote_presence": float(quote_presence),
         "auroc": float(auroc),
         "sortino_lowvol": float(sortino_low),
         "sortino_highvol": float(sortino_high),

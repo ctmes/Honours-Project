@@ -44,6 +44,7 @@ from gymnax_exchange.jaxrl.MARL.adversarial_eval.aggregate import (
 
 _RISK_METRICS = ("sharpe", "sortino", "softmin_sharpe", "cvar",
                  "peak_inventory", "inventory_sd", "quote_displacement",
+                 "quote_presence",
                  "sortino_lowvol", "sortino_highvol", "regime_gap")
 
 # Confirmatory family (Holm-adjusted). Keep this SMALL: at n=20 seeds, paired-t
@@ -158,12 +159,30 @@ def run_full_evaluation(
         report["holm"][label] = holm_adjust({m: r.p_value for m, r in results.items()})
 
     # H2 — equivalence on clean data (TOST), defended configs vs baseline.
+    # Margins may be pre-registered as plain numbers, or as
+    # {"fraction_of": "<config>", "fraction": f} — resolved as f * |mean of that
+    # config's metric|. Anchoring on the fixed-policy A-S arm keeps the margin a
+    # function of the benchmark only (no defended-arm peeking).
     if equivalence_margins:
+        resolved_margins = {}
+        for metric, margin in equivalence_margins.items():
+            if isinstance(margin, Mapping):
+                src = margin.get("fraction_of", "as")
+                if src not in metrics_by_config or metric not in metrics_by_config[src]:
+                    raise ValueError(
+                        f"margin for {metric!r} anchors on config {src!r}, which was "
+                        f"not evaluated in this run — include it in `configs`")
+                base = np.nanmean(np.asarray(metrics_by_config[src][metric],
+                                             dtype=np.float64))
+                resolved_margins[metric] = float(margin["fraction"]) * abs(float(base))
+            else:
+                resolved_margins[metric] = float(margin)
+        report["equivalence_margins_resolved"] = resolved_margins
         report["equivalence_off"] = {}
         for defended in ("full", "adversarial"):
             if defended in metrics_by_config and "baseline" in metrics_by_config:
                 tosts = {}
-                for metric, margin in equivalence_margins.items():
+                for metric, margin in resolved_margins.items():
                     if (metric in metrics_by_config[defended]
                             and metric in metrics_by_config["baseline"]):
                         tosts[metric] = tost_paired(

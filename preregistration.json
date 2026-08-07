@@ -13,9 +13,24 @@
   "multiplicity": "holm_within_contrast",
 
   "equivalence_margins": {
-    "_comment": "H2 (no clean-data degradation) TOST margins on mean paired difference, defended-vs-baseline, attack-off condition. PROPOSED values = 10% of the A-S clean-data anchor from the Phase-1 gate run; confirm with Dr Wen before sign-off.",
-    "sortino_off": 0.25,
-    "sharpe_off": 0.25
+    "_comment": "H2 (no clean-data degradation) TOST margins on mean paired difference, defended-vs-baseline, attack-off condition. TWO supported forms, pending Dr Wen's choice (option a vs b in the 2026-07 email): a fixed number (e.g. 0.25), or {'fraction_of': 'as', 'fraction': 0.10} = 10% of the fixed-policy A-S arm's clean-data value, resolved from the A-S arm only (no defended-arm peeking). Current values are option (b); replace with numbers if she picks (a).",
+    "sortino_off": {"fraction_of": "as", "fraction": 0.10},
+    "sharpe_off": {"fraction_of": "as", "fraction": 0.10}
+  },
+
+  "sensitivity_axes": {
+    "_comment": "Pre-registered sensitivity/ablation sweeps (estimation-only, no confirmatory claims). The telegraph axis was committed to Dr Wen (2026-06 email): the ~50% attack rate is a modelling choice for detection-label balance and must be shown not to drive the results.",
+    "attack_telegraph": "attack_on_prob/attack_off_prob in {0.05, 0.1, 0.2} (symmetric) plus one asymmetric low-duty setting",
+    "reward_weights": "inventoryPnL_eta, inventoryPnL_gamma (the phi/lambda analogues)",
+    "detection_weight": "DETECTION_LOSS_COEF (lambda_c) in {0.1, 0.5, 1.0}",
+    "adversary_budget": "budget_per_episode (B) sweep at evaluation",
+    "freeze_schedule": "FREEZE_ALTERNATION in {5, 10, 20}"
+  },
+
+  "interpretation_notes": {
+    "_comment": "Pre-registered BEFORE results to prevent post-hoc goalpost moves.",
+    "absolute_pnl": "Absolute MM profitability is NOT a hypothesis: Mohl et al. (2511.02136, Sec 5.2) report their learned MM loses ~0.2 ticks on average yet outperforms the A-S baseline, partly due to the structural price-time-priority disadvantage of per-step re-quoting, which this MM inherits. All H1-H4 claims are comparative (across arms / vs A-S), not absolute.",
+    "no_trade_equilibrium": "The Spooner-family reward is not volume-normalised; Mohl et al. observe near-no-trade optima. quote_presence_(on|off) is reported per arm to make this failure mode visible rather than silently inflating risk-adjusted metrics."
   },
 
   "progression_gate": {

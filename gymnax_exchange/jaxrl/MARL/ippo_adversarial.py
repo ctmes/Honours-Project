@@ -649,6 +649,16 @@ def make_train(config: dict):
         jitted_update_mm  = jax.jit(_update_mm)
         jitted_update_adv = jax.jit(_update_adv)
 
+        # _calculate_gae defines _get_advantages fresh on every call, so calling
+        # it unjitted hands lax.scan a new cache key each update and XLA
+        # recompiles the scan. The CPU backend never releases those LLVM
+        # executable sections, so the JIT section arena is exhausted after a few
+        # hundred updates ("LLVM ERROR: Unable to allocate section memory!" —
+        # the 2026-08-13 CPU sweep died at updates 394 and 744). Jitting once
+        # here keeps the compilation cached; gamma/gae_lambda are static so the
+        # per-agent constants stay compile-time.
+        jitted_calculate_gae = jax.jit(_calculate_gae, static_argnums=(0, 1))
+
         # ---- Checkpoint setup ----------------------------------------------
         agent_type_names = list(env.type_names)
         # Seed-derived run name so a SLURM job-array of seeds under one PROJECT
@@ -777,7 +787,7 @@ def make_train(config: dict):
                     traj_i = traj_i._replace(
                         reward=jnp.asarray(norm_r, dtype=traj_i.reward.dtype)
                     )
-                adv_i, tgt_i = _calculate_gae(
+                adv_i, tgt_i = jitted_calculate_gae(
                     config["GAMMA"][i], config["GAE_LAMBDA"][i],
                     traj_i, last_vals[i],
                 )

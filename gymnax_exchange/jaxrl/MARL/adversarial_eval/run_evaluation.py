@@ -45,6 +45,13 @@ from gymnax_exchange.jaxrl.MARL.adversarial_eval.aggregate import (
 _RISK_METRICS = ("sharpe", "sortino", "softmin_sharpe", "cvar",
                  "peak_inventory", "inventory_sd", "quote_displacement",
                  "quote_presence",
+                 # Manipulation actually delivered in each condition. rollout_metrics
+                 # always computed this but it was not reported, so an attack-on
+                 # rollout in which the adversary injected NOTHING was
+                 # indistinguishable from attack-off — exactly the ambiguity in the
+                 # eval_1121599 report, where every *_on equalled its *_off.
+                 # Diagnostic/descriptive only: not in the confirmatory family.
+                 "mean_attack_rate",
                  "sortino_lowvol", "sortino_highvol", "regime_gap")
 
 # Confirmatory family (Holm-adjusted). Keep this SMALL: at n=20 seeds, paired-t

@@ -19,7 +19,7 @@
 #SBATCH --account=pmc097
 #SBATCH --partition=work
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=256G
+#SBATCH --mem=64G
 #SBATCH --time=48:00:00
 #SBATCH --job-name=eval-cpu
 #SBATCH --output=/group/pmc097/cmelville/logs/evalcpu_%j.out

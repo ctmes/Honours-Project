@@ -389,6 +389,11 @@ def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=None,
         # period's message array (2024_test: ~8.8 GB) plus its device buffer, so
         # letting two overlap is what OOM'd the 64 GB eval job (1069659).
         del env, nets, ts_template, ts, cfg, arrays
+        # gc alone is not enough: JAX's compilation cache retains the executables
+        # (and the array constants captured in them) for this env, so without
+        # clear_caches() each mode leaks a full copy of the period's message data
+        # — measured at ~99 GB per SEED, scaling linearly (jobs 1121208/1121591).
+        jax.clear_caches()
         gc.collect()
     return out
 
@@ -420,5 +425,6 @@ def evaluate_fixed_policy(n_envs=8, n_steps=None, periods_per_year=98280.0,
         out[mode] = rollout_metrics(arrays, periods_per_year)
         out[mode]["_checkpoint_step"] = None
         del env, nets, ts, cfg, arrays, mm_cfg
+        jax.clear_caches()
         gc.collect()
     return out

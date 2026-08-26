@@ -217,6 +217,20 @@ def run_full_evaluation(
 
 def format_report(report: dict) -> str:
     lines = []
+    # Descriptive statistics first. These were always computed into
+    # report["summaries"] but never rendered, so the text report showed only the
+    # inferential sections — and a partial run with no contrasts printed almost
+    # nothing (job 1121208).
+    if report.get("summaries"):
+        lines.append("=== per-arm summaries (mean +/- sd over seeds) ===")
+        for cfg_name, summ in report["summaries"].items():
+            lines.append(f"[{cfg_name}]")
+            for metric in sorted(summ):
+                st = summ[metric]
+                lines.append(
+                    f"  {metric:<24}{st['mean']:>12.4g} +/-{st['std']:>10.4g}"
+                    f"   median={st['median']:>11.4g}   n={st['n']}")
+            lines.append("")
     for contrast in ("adversarial_vs_baseline", "full_vs_adversarial", "full_vs_baseline"):
         if contrast in report:
             lines.append(format_comparison_table(report[contrast], title=contrast))

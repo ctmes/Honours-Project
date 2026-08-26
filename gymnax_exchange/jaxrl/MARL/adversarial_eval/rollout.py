@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
+import gc
 import json
 import functools
 from dataclasses import fields
@@ -384,6 +385,11 @@ def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=None,
         out[mode]["_checkpoint_step"] = used_step
         if adv_run_name is not None:
             out[mode]["_adv_checkpoint"] = f"{adv_project or project}/{adv_run_name}@{adv_used_step}"
+        # Release this mode's env BEFORE the next build. Each env holds the whole
+        # period's message array (2024_test: ~8.8 GB) plus its device buffer, so
+        # letting two overlap is what OOM'd the 64 GB eval job (1069659).
+        del env, nets, ts_template, ts, cfg, arrays
+        gc.collect()
     return out
 
 
@@ -413,4 +419,6 @@ def evaluate_fixed_policy(n_envs=8, n_steps=None, periods_per_year=98280.0,
         arrays = run_rollout(env, nets, ts, cfg, mode, jax.random.PRNGKey(seed), n_envs, steps)
         out[mode] = rollout_metrics(arrays, periods_per_year)
         out[mode]["_checkpoint_step"] = None
+        del env, nets, ts, cfg, arrays, mm_cfg
+        gc.collect()
     return out

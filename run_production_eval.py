@@ -120,6 +120,30 @@ def main():
     print(f"evaluating arms: {list(configs)}  seeds: {len(run_names)}  "
           f"step: {step}  common adversary: {adv_kw['adv_project']}")
 
+    # Pre-flight: verify every checkpoint exists BEFORE evaluating anything. A
+    # missing seed otherwise aborts the run wherever it happens to fall — job
+    # 1121705 died on the first arm's first seed, but a gap in the middle of the
+    # list would have burned hours of completed rollouts first. Skipped when
+    # --step -1 (latest available) is requested.
+    if step is not None:
+        ckpt_root = root / "checkpoints" / "MARLCheckpoints"
+        wanted = [(kw["project"], rn) for kw in configs.values()
+                  if not kw.get("fixed_policy") for rn in kw["run_names"]]
+        if any(not kw.get("fixed_policy") for kw in configs.values()):
+            wanted += [(adv_kw["adv_project"], rn) for rn in adv_kw["adv_run_names"]]
+        missing = sorted({f"{proj}/{rn}/{step}" for proj, rn in wanted
+                          if not (ckpt_root / proj / rn / str(step)).is_dir()})
+        if missing:
+            print()
+            print(f"MISSING {len(missing)} of {len(set(wanted))} checkpoint(s) at "
+                  f"step {step} - nothing was evaluated:")
+            for m in missing:
+                print(f"  {m}")
+            print()
+            print("Training has probably not finished. Check ./status.sh")
+            sys.exit(1)
+        print(f"pre-flight OK: {len(set(wanted))} checkpoints present at step {step}")
+
     report = run_full_evaluation(
         configs,
         primary_metrics=tuple(prereg["primary_metrics"]),

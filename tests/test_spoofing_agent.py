@@ -43,6 +43,7 @@ def _make_state(budget: float = 500.0, attack_active: float = 1.0) -> SpoofingAg
     return SpoofingAgentState(
         budget_remaining=jnp.array(budget, dtype=jnp.float32),
         volume_injected=jnp.zeros(()),
+        volume_last_step=jnp.zeros(()),
         prev_mm_reward=jnp.zeros(()),
         prev_detection_prob=jnp.zeros(()),
         attack_active=jnp.array(attack_active, dtype=jnp.float32),
@@ -182,7 +183,10 @@ def test_reward_costs_nonpositive(agent, world_cfg):
     # Create a minimal state with some injected volume
     state = SpoofingAgentState(
         budget_remaining=jnp.array(400.0),
-        volume_injected=jnp.array(100.0),   # 100 units already injected
+        volume_injected=jnp.array(100.0),   # 100 units already injected this episode
+        # The accidental-fill cost is charged on the LAST STEP's injection, not the
+        # episode total, so this is what drives get_reward's fill term.
+        volume_last_step=jnp.array(100.0),
         prev_mm_reward=jnp.zeros(()),
         prev_detection_prob=jnp.zeros(()),
         attack_active=jnp.array(1.0, dtype=jnp.float32),
@@ -229,6 +233,67 @@ def test_reward_costs_nonpositive(agent, world_cfg):
     assert "costs_total" in extras, "Expected costs_total in extras"
     assert float(extras["costs_total"]) >= 0.0, \
         f"costs_total should be non-negative, got {float(extras['costs_total'])}"
+
+
+# ---------------------------------------------------------------------------
+# Test 4a: the accidental-fill cost is a per-step FLOW, not a function of the
+# episode's cumulative injected volume.
+#
+# It used to be charged on agent_state.volume_injected, which accumulates all
+# episode. fill_prob saturated at 1.0 within a few steps and depth_consumed then
+# grew with the running total a second time, making the cost quadratic and
+# unbounded: the 2026-08-27 smoke runs logged avg_reward_ADV near -7.7e6 against an
+# MM reward of order 1, and adv_label_rate was already decaying as the adversary
+# learned to stop attacking altogether. Holding the last step's injection fixed and
+# raising the episode total must not move the cost at all.
+# ---------------------------------------------------------------------------
+
+def test_fill_cost_independent_of_cumulative_volume(agent, world_cfg):
+    from gymnax_exchange.jaxen.StatesandParams import WorldState
+
+    def cost_for(cumulative, last_step):
+        state = SpoofingAgentState(
+            budget_remaining=jnp.array(400.0),
+            volume_injected=jnp.array(float(cumulative)),
+            volume_last_step=jnp.array(float(last_step)),
+            prev_mm_reward=jnp.zeros(()),
+            prev_detection_prob=jnp.zeros(()),
+            attack_active=jnp.array(1.0, dtype=jnp.float32),
+        )
+        # A book with real depth, so fill_prob is not pinned at its clip bound.
+        bids = jnp.zeros((100, 8), dtype=jnp.int32).at[:, 0].set(9990).at[:, 1].set(50)
+        asks = jnp.zeros((100, 8), dtype=jnp.int32).at[:, 0].set(10010).at[:, 1].set(50)
+        # Distinct best bid/ask: unwind_cost_per_share is proportional to the
+        # half-spread, so a zero-width book makes the whole cost identically zero
+        # and the comparison below vacuous.
+        best_bid = jnp.zeros((5, 2), dtype=jnp.int32).at[:, 0].set(9990).at[:, 1].set(50)
+        best_ask = jnp.zeros((5, 2), dtype=jnp.int32).at[:, 0].set(10010).at[:, 1].set(50)
+        ws = WorldState(
+            ask_raw_orders=asks, bid_raw_orders=bids,
+            trades=jnp.zeros((10, 8), dtype=jnp.int32),
+            init_time=jnp.zeros(2, dtype=jnp.int32), window_index=0,
+            max_steps_in_episode=6400, start_index=0, step_counter=100,
+            best_bids=best_bid, best_asks=best_ask, time=jnp.zeros(2, dtype=jnp.int32),
+            order_id_counter=0, mid_price=jnp.float32(10000.0),
+            delta_time=jnp.float32(1.0),
+        )
+        _, extras = agent.get_reward(
+            world_state=ws, agent_state=state,
+            agent_params=SpoofingAgentParams(budget_per_episode=jnp.array([500.0])),
+            trades=jnp.zeros((10, 8), dtype=jnp.int32),
+            bestasks=best_ask, bestbids=best_bid, ep_done_time=False,
+        )
+        return float(extras["accidental_fills"])
+
+    early = cost_for(cumulative=100.0, last_step=50.0)
+    late = cost_for(cumulative=100000.0, last_step=50.0)
+    assert early > 0.0, "fixture produced a zero cost - the comparison would be vacuous"
+    assert late == pytest.approx(early, rel=1e-6), (
+        "accidental-fill cost must not depend on cumulative episode volume "
+        f"(got {early} early vs {late} late)")
+
+    # And it must still respond to what was actually posted this step.
+    assert cost_for(100.0, 200.0) > cost_for(100.0, 50.0)
 
 
 # ---------------------------------------------------------------------------

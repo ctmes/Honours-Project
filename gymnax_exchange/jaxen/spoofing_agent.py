@@ -77,6 +77,7 @@ class SpoofingAgent:
         state = SpoofingAgentState(
             budget_remaining=agent_param.budget_per_episode,
             volume_injected=jnp.zeros(()),
+            volume_last_step=jnp.zeros(()),
             prev_mm_reward=jnp.zeros(()),
             prev_detection_prob=jnp.zeros(()),
             # Random initial telegraph phase for per-episode diversity; evolved in step_env.
@@ -177,8 +178,24 @@ class SpoofingAgent:
 
         # Fill-probability proxy: a larger injection relative to resting depth is more
         # likely to be hit before it can be cancelled.
-        fill_prob = jnp.clip(agent_state.volume_injected / (total_depth + 1.0), 0.0, 1.0)
-        filled_volume = fill_prob * agent_state.volume_injected
+        #
+        # This is the volume posted on ONE step, not the episode's cumulative total.
+        # Using the cumulative figure made the cost QUADRATIC and unbounded in it -
+        # fill_prob saturated at 1.0 within a few steps, filled_volume then tracked the
+        # running total, and depth_consumed grew with it a second time. The 2026-08-27
+        # smoke runs measured avg_reward_ADV around -7.7e6 against an MM reward of order
+        # 1, i.e. a cost term seven million times the signal it was supposed to temper;
+        # adv_label_rate was already decaying (0.503 -> 0.409 over 60 updates) as the
+        # adversary learned to stop attacking. A spoof order is posted and cancelled
+        # within the step, so its fill risk is a per-step flow, not a stock. The stock
+        # is still tracked as volume_injected for budget and OTR accounting.
+        #
+        # One-step lag, as with prev_mm_reward: get_reward runs before update_state, so
+        # this is the previous step's injection. Immaterial next to the normative
+        # approximation already inherent in costing a replayed market.
+        step_volume = agent_state.volume_last_step
+        fill_prob = jnp.clip(step_volume / (total_depth + 1.0), 0.0, 1.0)
+        filled_volume = fill_prob * step_volume
 
         # Adverse unwind price per share = half-spread + inverse-depth market impact
         # (Cont-Kukanov-Stoikov: unwinding into a thinner book moves price more). Both
@@ -244,6 +261,7 @@ class SpoofingAgent:
         new_state = SpoofingAgentState(
             budget_remaining=jnp.maximum(0.0, agent_state.budget_remaining - vol_step),
             volume_injected=agent_state.volume_injected + vol_step,
+            volume_last_step=vol_step,
             prev_mm_reward=extras.get("mm_reward_this_step", agent_state.prev_mm_reward),
             # prev_detection_prob is set by the training loop after each step, not here
             prev_detection_prob=agent_state.prev_detection_prob,

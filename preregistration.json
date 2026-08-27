@@ -83,7 +83,7 @@
     "kappa_anchor": "SEC v. Lek Securities / Avalon FA (S.D.N.Y. 2019-20): court-ordered disgorgement against Avalon and principals was $4,495,564 plus $131,750 prejudgment interest. Disgorgement is defined as illicit profits, so kappa ~ 1.",
     "p_detect": 0.1,
     "p_detect_status": "PLACEHOLDER - no published estimate anchors the probability that a given episode's manipulation is detected and pursued. Swept as a sensitivity axis and reported as an assumption, not a calibrated quantity. Enters only as the product with kappa, so the kappa sweep partly absorbs uncertainty in it.",
-    "accidental_fill_cost": "c_fill = 0.001 on expected filled volume x (half-spread + inverse-depth impact), accruing every active step. Unchanged.",
+    "accidental_fill_cost": "c_fill = 0.001 on expected filled volume x (half-spread + inverse-depth impact), charged every active step. EXPECTED FILLED VOLUME IS PER-STEP: p_fill(v_t) * v_t, where v_t is the volume posted on that step. A spoof order is posted and cancelled within the step, so its fill risk is a flow. Corrected 2026-08-27 - the implementation had been reading the episode's CUMULATIVE injected volume, which made the cost quadratic and unbounded in it (measured avg_reward_ADV ~ -7.7e6 against an MM reward of order 1). Cumulative volume is still tracked for budget and OTR accounting. This restores the model as specified; it is not a change to it.",
     "unconstrained_comparator": "Arm F (v2_config6_unconstrained) sets kappa = p_detect = c_fill = 0, giving the unconstrained spoofer the proposal promises as a baseline. NOTE: every arm of the superseded v1 run had these at zero, so no earlier result exercised the economic constraint at all."
   },
   "design": {

@@ -674,6 +674,13 @@ def make_train(config: dict):
             f'{config["world_config"]["alphatradePath"]}/checkpoints/MARLCheckpoints'
             f'/{config["PROJECT"]}/{_run_name}'
         )
+        # Announce the checkpoint destination before anything writes to it. Two
+        # concurrently-submitted arrays of the same arm write the SAME directory
+        # from different nodes and corrupt it silently (2026-08-26); this line is
+        # what makes a running job self-identifying, both for eta.sh's ARM column
+        # and for `grep -h PROJECT= logs/*.out | sort | uniq -c` to spot a clash.
+        print(f"PROJECT={config['PROJECT']}  run={_run_name}  "
+              f"checkpoint_dir={checkpoint_dir}", flush=True)
         orbax_checkpointer = oxcp.PyTreeCheckpointer()
         options = oxcp.CheckpointManagerOptions(
             max_to_keep=2, create=True, keep_period=max(1, config["NUM_UPDATES"] // 2)

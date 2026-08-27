@@ -72,7 +72,8 @@ def evaluate_seeds(project=None, run_names: Sequence[str] | None = None, n_envs=
                    adv_run_names: Sequence[str] | None = None,
                    adv_step=None,
                    fixed_policy: bool = False,
-                   n_seeds: int | None = None) -> dict[str, np.ndarray]:
+                   n_seeds: int | None = None,
+                   progress=None) -> dict[str, np.ndarray]:
     """Roll out every seed (checkpoint run) of one config -> {metric -> array-over-seeds}.
 
     `run_names` are the checkpoint run directories for this config's seeds (all under the
@@ -118,6 +119,8 @@ def evaluate_seeds(project=None, run_names: Sequence[str] | None = None, n_envs=
                                       periods_per_year, seed=sd, step=step,
                                       adv_project=adv_project, adv_run_name=adv_rn,
                                       adv_step=adv_step, **kw)
+        if progress is not None:
+            progress(len(rows) + 1)
         row = {}
         for m in _RISK_METRICS:
             row[f"{m}_on"] = res["on"][m]
@@ -126,6 +129,34 @@ def evaluate_seeds(project=None, run_names: Sequence[str] | None = None, n_envs=
         rows.append(row)
     # transpose list-of-dicts -> dict-of-arrays
     return {k: np.array([r[k] for r in rows], dtype=np.float64) for k in rows[0]}
+
+
+def _progress_printer(configs: Mapping[str, dict]):
+    """Return a factory of per-arm callbacks that print one flushed line per seed.
+
+    The driver used to emit nothing at all between launch and the final report, so a
+    running eval job was indistinguishable from a hung one and there was no way to
+    estimate a finish time. Each line carries a global counter, which is all `eta.sh`
+    needs to turn SLURM's elapsed clock into a rate.
+    """
+    totals = {}
+    for name, kw in configs.items():
+        if kw.get("run_names") is not None:
+            totals[name] = len(kw["run_names"])
+        elif kw.get("seeds") is not None:
+            totals[name] = len(kw["seeds"])
+        else:
+            totals[name] = int(kw.get("n_seeds") or 0)
+    grand = sum(totals.values())
+    state = {"done": 0}
+
+    def make(name: str):
+        def cb(i: int):
+            state["done"] += 1
+            print(f"[eval] {state['done']}/{grand} arm={name} "
+                  f"seed {i}/{totals[name]}", flush=True)
+        return cb
+    return make
 
 
 def run_full_evaluation(
@@ -147,7 +178,9 @@ def run_full_evaluation(
     (and adversarial-vs-baseline when present). Margins are a pre-specified scientific
     input — an economically negligible degradation — not derived from the data.
     """
-    metrics_by_config = {name: evaluate_seeds(**kw) for name, kw in configs.items()}
+    make_cb = _progress_printer(configs)
+    metrics_by_config = {name: evaluate_seeds(progress=make_cb(name), **kw)
+                         for name, kw in configs.items()}
 
     report = {"summaries": {c: summarize_seeds(m) for c, m in metrics_by_config.items()},
               # Raw per-seed arrays. Previously only the summaries were kept, so the

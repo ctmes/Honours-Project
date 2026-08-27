@@ -242,9 +242,9 @@ def test_reward_costs_nonpositive(agent, world_cfg):
 # It used to be charged on agent_state.volume_injected, which accumulates all
 # episode. fill_prob saturated at 1.0 within a few steps and depth_consumed then
 # grew with the running total a second time, making the cost quadratic and
-# unbounded: the 2026-08-27 smoke runs logged avg_reward_ADV near -7.7e6 against an
-# MM reward of order 1, and adv_label_rate was already decaying as the adversary
-# learned to stop attacking altogether. Holding the last step's injection fixed and
+# unbounded: the 2026-08-27 smoke runs logged avg_reward_ADV near -7.7e6 on every
+# constrained arm against an MM reward of order 1, while the unconstrained arm
+# (c_fill = 0) sat at exactly -r_mm. Holding the last step's injection fixed and
 # raising the episode total must not move the cost at all.
 # ---------------------------------------------------------------------------
 

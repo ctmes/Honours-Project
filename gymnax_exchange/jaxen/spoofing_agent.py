@@ -183,10 +183,11 @@ class SpoofingAgent:
         # Using the cumulative figure made the cost QUADRATIC and unbounded in it -
         # fill_prob saturated at 1.0 within a few steps, filled_volume then tracked the
         # running total, and depth_consumed grew with it a second time. The 2026-08-27
-        # smoke runs measured avg_reward_ADV around -7.7e6 against an MM reward of order
-        # 1, i.e. a cost term seven million times the signal it was supposed to temper;
-        # adv_label_rate was already decaying (0.503 -> 0.409 over 60 updates) as the
-        # adversary learned to stop attacking. A spoof order is posted and cancelled
+        # smoke runs measured avg_reward_ADV around -7.7e6 on every constrained arm
+        # against an MM reward of order 1, while the unconstrained arm (c_fill = 0) sat
+        # at exactly -r_mm: a cost term seven million times the signal it was supposed
+        # to temper. Reward normalisation rescales that but cannot recover the
+        # manipulation gain buried under it. A spoof order is posted and cancelled
         # within the step, so its fill risk is a per-step flow, not a stock. The stock
         # is still tracked as volume_injected for budget and OTR accounting.
         #

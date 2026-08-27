@@ -191,7 +191,31 @@ class SpoofingAgent:
         unwind_cost_per_share = half_spread * (1.0 + self.cfg.c_impact * depth_consumed)
         accidental_fills = self.cfg.c_fill * filled_volume * unwind_cost_per_share
 
-        regulatory_cost = self.cfg.c_reg * agent_state.volume_injected
+        # Regulatory / enforcement cost.
+        #
+        #   "profit_tax" (pre-registered): expected enforcement cost is
+        #       p_detect * kappa * max(gross gain, 0). Gross gain is what the
+        #       adversary extracts from the market maker, i.e. -r_mm, floored at
+        #       zero because a manipulation that loses money is not disgorged.
+        #       This ties the penalty to what the manipulation actually earned,
+        #       which is how disgorgement works, rather than to volume posted.
+        #   "volume": the earlier per-unit-volume penalty, kept for comparison.
+        #
+        # The gain enters with a ONE-STEP LAG through agent_state.prev_mm_reward:
+        # r_mm for the current step is not formed until after this function returns
+        # (AdversarialMARLEnv.step_env supplies the -r_mm term). Under market replay
+        # every one of these costs is normative anyway - they encode what a real
+        # adversary would face, not what this one mechanically incurs - so a
+        # one-step lag on the gain is immaterial next to that approximation.
+        if self.cfg.reg_cost_mode == "profit_tax":
+            gross_gain = jnp.maximum(-jnp.squeeze(agent_state.prev_mm_reward), 0.0)
+            regulatory_cost = self.cfg.p_detect * self.cfg.kappa * gross_gain
+        elif self.cfg.reg_cost_mode == "volume":
+            regulatory_cost = self.cfg.c_reg * agent_state.volume_injected
+        else:
+            raise ValueError(
+                f"reg_cost_mode must be 'profit_tax' or 'volume', "
+                f"got {self.cfg.reg_cost_mode!r}")
 
         # Full adversary reward = -r_mm - costs. The -r_mm term is added by
         # AdversarialMARLEnv.step_env after this function returns.

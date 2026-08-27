@@ -85,12 +85,15 @@
       "c_fill": 0.0,
       "c_reg": 0.0,
       "num_messages_by_agent": 0,
-      "num_action_messages_by_agent": 0
+      "num_action_messages_by_agent": 0,
+      "reg_cost_mode": "profit_tax",
+      "kappa": 0.0,
+      "p_detect": 0.0
     }
   },
   "number_of_agents_per_type": [
     1,
     1
   ],
-  "_comment": "Config-6 arm F: UNCONSTRAINED adversary (c_fill = c_reg = 0), MM defences off. The comparator the proposal promises for contribution 1 — every earlier run had c_fill = c_reg = 0, i.e. the economic constraint was never active in ANY arm. B vs F isolates it. Evaluate with eval_2024_test_config6.yaml."
+  "_comment": "Config-6 arm F: UNCONSTRAINED adversary (c_fill = c_reg = 0), MM defences off. The comparator the proposal promises for contribution 1 ' every earlier run had c_fill = c_reg = 0, i.e. the economic constraint was never active in ANY arm. B vs F isolates it. Evaluate with eval_2024_test_config6.yaml."
 }

@@ -86,7 +86,10 @@
       "c_fill": 0.001,
       "c_reg": 0.0005,
       "num_messages_by_agent": 0,
-      "num_action_messages_by_agent": 0
+      "num_action_messages_by_agent": 0,
+      "reg_cost_mode": "profit_tax",
+      "kappa": 1.0,
+      "p_detect": 0.1
     }
   },
   "number_of_agents_per_type": [

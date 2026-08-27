@@ -85,12 +85,15 @@
       "c_fill": 0.001,
       "c_reg": 0.0005,
       "num_messages_by_agent": 0,
-      "num_action_messages_by_agent": 0
+      "num_action_messages_by_agent": 0,
+      "reg_cost_mode": "profit_tax",
+      "kappa": 1.0,
+      "p_detect": 0.1
     }
   },
   "number_of_agents_per_type": [
     1,
     1
   ],
-  "_comment": "Config-4 arm C: constrained adversary + DETECTION HEAD ONLY (regime_conditioning off). With arms B/D/E this completes the 2x2 factorial over {detection, regime} so their main effects are separable — config-3 confounds them. Evaluate with eval_2024_test_config4.yaml."
+  "_comment": "Config-4 arm C: constrained adversary + DETECTION HEAD ONLY (regime_conditioning off). With arms B/D/E this completes the 2x2 factorial over {detection, regime} so their main effects are separable ' config-3 confounds them. Evaluate with eval_2024_test_config4.yaml."
 }

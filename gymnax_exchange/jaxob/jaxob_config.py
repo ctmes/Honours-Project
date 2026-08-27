@@ -225,7 +225,19 @@ class SpoofingAgentConfig:
     budget_per_episode: float = 500.0
     c_fill: float = 0.001            # accidental-fill (unwind) cost multiplier (eval-time; 0 during unconstrained training)
     c_impact: float = 1.0            # dimensionless: amplifies unwind cost by fraction of book depth consumed (Cont-Kukanov-Stoikov)
-    c_reg: float = 0.0005            # regulatory penalty per unit volume spoofed (eval-time; 0 during training)
+    c_reg: float = 0.0005            # "volume" mode only: penalty per unit volume spoofed
+    # Regulatory / enforcement cost form. Pre-registered 2026-08-27 as "profit_tax":
+    # enforcement against spoofing is disgorgement of illicit profit, so the expected
+    # cost is p_detect * kappa * (adversary gross gain) rather than a per-share fee.
+    # kappa ~ 1 is anchored on SEC v. Lek Securities / Avalon FA (S.D.N.Y. 2019-20),
+    # where court-ordered disgorgement approximated proven profits, and is swept over
+    # {0.5, 1, 2}. "volume" retains the earlier per-unit-volume form for comparison.
+    reg_cost_mode: str = "profit_tax"
+    kappa: float = 1.0               # disgorgement multiplier (Avalon anchor); swept {0.5, 1, 2}
+    # PLACEHOLDER pending a defensible source: the probability that a given episode's
+    # manipulation is detected and pursued. Listed as a pre-registered sensitivity axis
+    # because no published estimate anchors it. Enters only as the product with kappa.
+    p_detect: float = 0.10
     # Oracle-label materiality floor: a step is labelled "attack" only if total injected
     # volume exceeds this fraction of mean best-quote depth. 0.0 = any positive injection
     # counts (legacy behaviour); a small positive value stops epsilon-volume injections

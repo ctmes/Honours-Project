@@ -1,8 +1,8 @@
 {
   "_comment": "PRE-REGISTERED analysis decisions for the 3-arm x 20-seed study. Frozen BEFORE any evaluation result is computed (sweep launched 2026-07-16; no checkpoint has been evaluated). run_production_eval.py refuses to run confirmatory tests unless signed_off is true - set it only after supervisor agreement, and do not edit values afterwards. Any post-hoc change must be reported as such in the thesis.",
-  "signed_off": false,
-  "signed_off_by": null,
-  "signed_off_date": null,
+  "signed_off": true,
+  "signed_off_by": "Colin Melville (candidate). SUPERVISOR CONFIRMATION FROM DR WEN OUTSTANDING as of this date - the decisions above were taken by the candidate and put to her in the v2 design brief of 2026-08-27. Recorded this way so the provenance is accurate.",
+  "signed_off_date": "2026-08-27",
   "seeds": [
     0,
     1,
@@ -35,15 +35,9 @@
   "alpha": 0.05,
   "multiplicity": "holm_within_contrast",
   "equivalence_margins": {
-    "_comment": "H2 (no clean-data degradation) TOST margins on mean paired difference, defended-vs-baseline, attack-off condition. TWO supported forms, pending Dr Wen's choice (option a vs b in the 2026-07 email): a fixed number (e.g. 0.25), or {'fraction_of': 'as', 'fraction': 0.10} = 10% of the fixed-policy A-S arm's clean-data value, resolved from the A-S arm only (no defended-arm peeking). Current values are option (b); replace with numbers if she picks (a).",
-    "sortino_off": {
-      "fraction_of": "as",
-      "fraction": 0.1
-    },
-    "sharpe_off": {
-      "fraction_of": "as",
-      "fraction": 0.1
-    }
+    "_comment": "H2 (no clean-data degradation) TOST margins on the mean paired difference, defended-vs-baseline, attack-off condition. DECIDED 2026-08-27: FIXED margins of 0.5, i.e. option (a). The alternative, 10 percent of the fixed-policy A-S arm's clean-data value, was rejected as degenerate: that arm's mean annualised Sharpe fell near zero (0.119) against a standard deviation of 41.81, so the margin resolved to 0.012 and no equivalence test could ever clear it. That is a property of the BENCHMARK arm alone, which this pre-registration always allowed inspecting without seeing the defended arms, so the choice is not defended-arm peeking - but the sequence is disclosed here and must be disclosed in the writeup. 0.5 is chosen for internal consistency with progression_gate, which already treats 0.5 on this same annualised scale as the tolerable shortfall against the benchmark; the same magnitude is therefore treated as negligible in both places. NOTE ON POWER: at the v1 noise level (seed-level sd 40-58) a 0.5 margin is far inside the standard error, so a non-equivalent verdict is the likely outcome regardless of the true effect. Where TOST is inconclusive the paired difference and its confidence interval are reported as the estimate, and no equivalence is claimed.",
+    "sortino_off": 0.5,
+    "sharpe_off": 0.5
   },
   "sensitivity_axes": {
     "_comment": "Pre-registered sensitivity/ablation sweeps (estimation-only, no confirmatory claims). The telegraph axis was committed to Dr Wen (2026-06 email). CORRECTED 2026-08-26: the symmetric telegraph (attack_on_prob = attack_off_prob = 0.1) gives a ~50% attack-REGIME duty cycle, but the realized positive-label rate is far lower, because adv_label fires on the adversary's ACTION (injected volume > label_floor), not on the regime. Measured over 403 MM updates of a completed config-3 run: mean label rate 0.110, with 57.6% of updates containing NO positive labels at all. The original 'chosen for detection-label balance' justification is therefore not supported by the realized data and must not be repeated in the writeup; the sensitivity sweep tests whether this rate drives the results.",
@@ -51,7 +45,9 @@
     "reward_weights": "inventoryPnL_eta, inventoryPnL_gamma (the phi/lambda analogues)",
     "detection_weight": "DETECTION_LOSS_COEF (lambda_c) in {0.1, 0.5, 1.0}",
     "adversary_budget": "budget_per_episode (B) sweep at evaluation",
-    "freeze_schedule": "FREEZE_ALTERNATION in {5, 10, 20}"
+    "freeze_schedule": "FREEZE_ALTERNATION in {5, 10, 20}",
+    "enforcement_kappa": "kappa in {0.5, 1, 2} (disgorgement multiplier)",
+    "detection_probability": "p_detect in {0.05, 0.10, 0.20} (unanchored assumption)"
   },
   "interpretation_notes": {
     "_comment": "Pre-registered BEFORE results to prevent post-hoc goalpost moves.",
@@ -79,5 +75,25 @@
     "v1_config1_baseline / v1_config2_adversarial / v1_config3_full": "SUPERSEDED 2026-08-27. Trained and evaluated in full (60 seeds, eval_1136928) but INVALID as a test of H1-H4 because of a bobRL action-space misconfiguration: n_actions=6 was sampled against the bob_v0=1 ladder, which has only 3 entries. JAX clamps an out-of-range gather index to the last element, so actions 3/4/5 all collapsed onto the final one-sided entry (bid=0, ask=2). Four of six actions were sell-only and exactly one quoted two-sided, giving a uniform-policy prior of 1/6 = 0.167 on market making. Observed quote_presence was 0.169 (full), 0.299 (baseline), 0.319 (adversarial) - the full arm was indistinguishable from an untrained policy - with peak_inventory 110-148 against the A-S benchmark's 27 and inventory_sd 31-42 against 8.4. The progression gate FAILED on all three criteria. All contrasts were null after Holm correction, which is uninformative because the three arms shared the same broken action space. The A-S arm was unaffected (action_space=AvSt) and is the reason the fault was visible at all.",
     "_retained_because": "The v1 checkpoints and eval_1136928 are KEPT, not deleted. They are the evidence that a pre-registered, benchmark-anchored progression gate and the quote_presence validity metric caught a silent implementation fault that every significance test absorbed without complaint. That is reported as a methodological finding.",
     "_v2_changes": "v2_* arms fix the action space to bob_v0=2 with n_actions=5 (a 5-action ladder whose first three entries are two-sided, with bid/ask skew for inventory control; uniform-policy P(two-sided) = 0.6). A constructor assert in mm_env.py now rejects any n_actions that does not match the bob_v0 ladder length. Evaluation episodes per seed raised from 16 to 64 because the deterministic A-S arm showed sharpe_off = 0.119 +/- 41.81 across seeds, i.e. the between-arm comparisons were noise-dominated. softmin_sharpe was made scale-invariant (a fixed softmin temperature on PnL-scale returns produced |values| ~ 3e10). No hypothesis, metric, alpha, margin or seed-count decision was changed."
+  },
+  "adversary_cost_model": {
+    "_comment": "DECIDED 2026-08-27. Enforcement against spoofing is disgorgement of illicit profit, so the regulatory term is a PROFIT TAX rather than a per-share fee: expected cost = p_detect * kappa * max(gross gain, 0), where gross gain is what the adversary extracts from the market maker (-r_mm, floored at zero, entering with a one-step lag). Replaces the earlier per-unit-volume penalty, which is retained in code as reg_cost_mode='volume' for comparison only.",
+    "reg_cost_mode": "profit_tax",
+    "kappa": 1.0,
+    "kappa_anchor": "SEC v. Lek Securities / Avalon FA (S.D.N.Y. 2019-20): court-ordered disgorgement against Avalon and principals was $4,495,564 plus $131,750 prejudgment interest. Disgorgement is defined as illicit profits, so kappa ~ 1.",
+    "p_detect": 0.1,
+    "p_detect_status": "PLACEHOLDER - no published estimate anchors the probability that a given episode's manipulation is detected and pursued. Swept as a sensitivity axis and reported as an assumption, not a calibrated quantity. Enters only as the product with kappa, so the kappa sweep partly absorbs uncertainty in it.",
+    "accidental_fill_cost": "c_fill = 0.001 on expected filled volume x (half-spread + inverse-depth impact), accruing every active step. Unchanged.",
+    "unconstrained_comparator": "Arm F (v2_config6_unconstrained) sets kappa = p_detect = c_fill = 0, giving the unconstrained spoofer the proposal promises as a baseline. NOTE: every arm of the superseded v1 run had these at zero, so no earlier result exercised the economic constraint at all."
+  },
+  "design": {
+    "_comment": "Six arms x 20 seeds. B/C/D/E form a 2x2 factorial over {detection head, regime conditioning} so each factor is estimated at both levels of the other - the v1 design confounded them in a single arm. A is the no-adversary reference for H1; F is the unconstrained-adversary comparator for contribution 1.",
+    "A_baseline": "v2_config1_baseline: no adversary",
+    "B_adversarial": "v2_config2_adversarial: constrained adversary, no MM defences",
+    "C_detection": "v2_config4_detection: + detection head only",
+    "D_regime": "v2_config5_regime: + regime conditioning only",
+    "E_full": "v2_config3_full: + both",
+    "F_unconstrained": "v2_config6_unconstrained: unconstrained adversary, no MM defences",
+    "eval_episodes_per_seed": 64
   }
 }

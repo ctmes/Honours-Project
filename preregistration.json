@@ -1,55 +1,78 @@
 {
   "_comment": "PRE-REGISTERED analysis decisions for the 3-arm x 20-seed study. Frozen BEFORE any evaluation result is computed (sweep launched 2026-07-16; no checkpoint has been evaluated). run_production_eval.py refuses to run confirmatory tests unless signed_off is true - set it only after supervisor agreement, and do not edit values afterwards. Any post-hoc change must be reported as such in the thesis.",
-
   "signed_off": false,
   "signed_off_by": null,
   "signed_off_date": null,
-
-  "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
   "checkpoint_step": 1002,
-
-  "primary_metrics": ["sortino_on", "sharpe_on", "cvar_on", "auroc"],
+  "primary_metrics": [
+    "sortino_on",
+    "sharpe_on",
+    "cvar_on",
+    "auroc"
+  ],
   "alpha": 0.05,
   "multiplicity": "holm_within_contrast",
-
   "equivalence_margins": {
     "_comment": "H2 (no clean-data degradation) TOST margins on mean paired difference, defended-vs-baseline, attack-off condition. TWO supported forms, pending Dr Wen's choice (option a vs b in the 2026-07 email): a fixed number (e.g. 0.25), or {'fraction_of': 'as', 'fraction': 0.10} = 10% of the fixed-policy A-S arm's clean-data value, resolved from the A-S arm only (no defended-arm peeking). Current values are option (b); replace with numbers if she picks (a).",
-    "sortino_off": {"fraction_of": "as", "fraction": 0.10},
-    "sharpe_off": {"fraction_of": "as", "fraction": 0.10}
+    "sortino_off": {
+      "fraction_of": "as",
+      "fraction": 0.1
+    },
+    "sharpe_off": {
+      "fraction_of": "as",
+      "fraction": 0.1
+    }
   },
-
   "sensitivity_axes": {
-    "_comment": "Pre-registered sensitivity/ablation sweeps (estimation-only, no confirmatory claims). The telegraph axis was committed to Dr Wen (2026-06 email): the ~50% attack rate is a modelling choice for detection-label balance and must be shown not to drive the results.",
+    "_comment": "Pre-registered sensitivity/ablation sweeps (estimation-only, no confirmatory claims). The telegraph axis was committed to Dr Wen (2026-06 email). CORRECTED 2026-08-26: the symmetric telegraph (attack_on_prob = attack_off_prob = 0.1) gives a ~50% attack-REGIME duty cycle, but the realized positive-label rate is far lower, because adv_label fires on the adversary's ACTION (injected volume > label_floor), not on the regime. Measured over 403 MM updates of a completed config-3 run: mean label rate 0.110, with 57.6% of updates containing NO positive labels at all. The original 'chosen for detection-label balance' justification is therefore not supported by the realized data and must not be repeated in the writeup; the sensitivity sweep tests whether this rate drives the results.",
     "attack_telegraph": "attack_on_prob/attack_off_prob in {0.05, 0.1, 0.2} (symmetric) plus one asymmetric low-duty setting",
     "reward_weights": "inventoryPnL_eta, inventoryPnL_gamma (the phi/lambda analogues)",
     "detection_weight": "DETECTION_LOSS_COEF (lambda_c) in {0.1, 0.5, 1.0}",
     "adversary_budget": "budget_per_episode (B) sweep at evaluation",
     "freeze_schedule": "FREEZE_ALTERNATION in {5, 10, 20}"
   },
-
   "interpretation_notes": {
     "_comment": "Pre-registered BEFORE results to prevent post-hoc goalpost moves.",
     "absolute_pnl": "Absolute MM profitability is NOT a hypothesis: Mohl et al. (2511.02136, Sec 5.2) report their learned MM loses ~0.2 ticks on average yet outperforms the A-S baseline, partly due to the structural price-time-priority disadvantage of per-step re-quoting, which this MM inherits. All H1-H4 claims are comparative (across arms / vs A-S), not absolute.",
-    "no_trade_equilibrium": "The Spooner-family reward is not volume-normalised; Mohl et al. observe near-no-trade optima. quote_presence_(on|off) is reported per arm to make this failure mode visible rather than silently inflating risk-adjusted metrics."
+    "no_trade_equilibrium": "The Spooner-family reward is not volume-normalised; Mohl et al. observe near-no-trade optima. quote_presence_(on|off) is reported per arm to make this failure mode visible rather than silently inflating risk-adjusted metrics.",
+    "observation_space_adversary": "The spoofing adversary places NO orders: SpoofingAgent.get_messages returns empty message and cancel arrays, and AdversarialMARLEnv.step_env runs the full LOB step unmodified, then adds the injected volume to a COPY of the L2 snapshot handed to the MM as its observation. Real fills, mid price and PnL are untouched by construction. This is a deliberate model of the informational effect of spoofing (a spoof order is cancelled before execution, so its economic function is to mislead), but it means the attack can only change outcomes VIA the MM's policy response. It must be described in the writeup as perturbing the market maker's observed depth, NOT as manipulating the order book.",
+    "quote_presence_validity_gate": "quote_presence = fraction of steps with a two-sided quote posted (posted_bid_price > 0 AND posted_ask_price > 0). Because the adversary is observation-space only, an MM whose policy is insensitive to its observations is trivially invariant to attack and scores IDENTICALLY under attack-on and attack-off - looking maximally robust for the wrong reason. PRE-REGISTERED DECISION (made 2026-08-26, before the full evaluation was read): an arm whose seeds are predominantly quote_presence ~= 0 cannot support an H1 robustness claim, and any such result is to be reported as policy collapse (the Mohl et al. no-trade failure mode) rather than as robustness. quote_presence and mean_attack_rate are reported per arm and per condition so this is checkable. Observed in a 2-seed pilot (eval_1121620): config-3 quote_presence = 0 with mean_attack_rate_on = 1.0 and every risk metric identical between attack-on and attack-off."
   },
-
   "progression_gate": {
     "sharpe_margin": 0.5,
     "sortino_margin": 0.5,
     "inv_sd_factor": 2.0
   },
-
   "common_adversary": {
     "_comment": "Every arm evaluated under attack faces the config-3 arm's adversary, paired by seed index (internal validity for H1).",
     "project": "v1_config3_full",
     "run_names": "seed_<i>"
   },
-
   "periods_per_year": 10833681,
   "periods_per_year_derivation": "2024_test cache: 275,141,175 msgs / 64 days = 4,299,081 msgs/day; at 100 msgs/step -> 42,991 steps/day x 252 trading days = 10,833,681 return-steps/year. Annualisation rescales Sharpe/Sortino uniformly across arms; paired contrasts are invariant to it.",
-
   "label_materiality_frac": 0.0,
   "label_materiality_note": "0.0 = any positive injected volume counts as an attack step (legacy behaviour, matches training).",
-
-  "training_schedule_note": "All arms trained on chained quarters Q1->Q2->Q3 of 2024 (calendar-ordered curriculum, identical across arms); evaluation exclusively on the untouched 2024-10-01..2024-12-31 holdout."
+  "training_schedule_note": "All arms trained SINGLE-PHASE on the full 2024-01-01..2024-09-30 pool (22.23 GB message array, uniform window sampling, no calendar-ordered curriculum), 1002 updates x 512 steps x 16 envs, identical across arms; evaluation exclusively on the untouched 2024-10-01..2024-12-31 holdout. CHANGED 2026-08-26 from the earlier chained-quarters (Q1->Q2->Q3) plan: that design existed only to fit a 16 GB V100, and after the GPU partition outage all training moved to CPU nodes with 1.5 TB RAM, where the whole pool fits in one phase. Uniform sampling also removes the curriculum ordering as a confound. All arms use the SAME backend (CPU) - mixing CPU/GPU arms would confound the H1 contrast via float op-ordering."
 }

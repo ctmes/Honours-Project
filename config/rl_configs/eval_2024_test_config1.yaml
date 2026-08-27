@@ -1,10 +1,10 @@
 # ============================================================================
 # EVAL CONFIG — Config-1 (baseline) checkpoints on the HELD-OUT 2024_test split.
 #
-# Used via:  evaluate_seeds(project="v1_config1_baseline",
+# Used via:  evaluate_seeds(project="v2_config1_baseline",
 #                           run_names=["seed_0", ...],
 #                           yaml_path="config/rl_configs/eval_2024_test_config1.yaml",
-#                           adv_project="v1_config3_full",
+#                           adv_project="v2_config3_full",
 #                           adv_run_names=["seed_0", ...])   # common adversary
 #
 # ENV_CONFIG is deliberately the CONFIG-2 json, not the config-1 training json:
@@ -49,5 +49,5 @@
 "TimePeriod": "2024_test"
 
 "ENTITY": "your-wandb-entity"
-"PROJECT": "v1_config1_baseline"
+"PROJECT": "v2_config1_baseline"
 "WANDB_MODE": "disabled"

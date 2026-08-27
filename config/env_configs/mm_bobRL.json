@@ -63,7 +63,7 @@
       "reward_scaling_quo": 10,
       "inventoryPnL_eta": 0.6,
       "inventoryPnL_gamma": 0.5,
-      "n_actions": 6,
+      "n_actions": 3,
       "num_messages_by_agent": 4,
       "num_action_messages_by_agent": 2
     }

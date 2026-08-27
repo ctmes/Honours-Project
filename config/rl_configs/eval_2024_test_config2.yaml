@@ -3,10 +3,10 @@
 # 2024_test split. ENV_CONFIG matches the arm's own training json (obs channels
 # zeroed, adversary enabled); attack modes forced by set_attack_mode at eval.
 #
-# Used via:  evaluate_seeds(project="v1_config2_adversarial",
+# Used via:  evaluate_seeds(project="v2_config2_adversarial",
 #                           run_names=["seed_0", ...],
 #                           yaml_path="config/rl_configs/eval_2024_test_config2.yaml",
-#                           adv_project="v1_config3_full",
+#                           adv_project="v2_config3_full",
 #                           adv_run_names=["seed_0", ...])   # common adversary
 # ============================================================================
 
@@ -42,5 +42,5 @@
 "TimePeriod": "2024_test"
 
 "ENTITY": "your-wandb-entity"
-"PROJECT": "v1_config2_adversarial"
+"PROJECT": "v2_config2_adversarial"
 "WANDB_MODE": "disabled"

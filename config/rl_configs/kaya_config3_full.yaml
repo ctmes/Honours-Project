@@ -3,7 +3,7 @@
 # head (PCGrad PPO+BCE) + regime conditioning (adversarial_mm_cluster.json:
 # all three flags true). This arm's trained adversaries are also the COMMON
 # reference adversaries for evaluation — every arm is attacked by
-# v1_config3_full/seed_i at eval so the H1 contrast is not confounded by
+# v2_config3_full/seed_i at eval so the H1 contrast is not confounded by
 # attacker strength (see adversarial_eval/run_evaluation.py `adv_run_names`).
 #
 # Launch (20-seed chained sweep):   ./submit_chain.sh kaya_config3_full
@@ -48,5 +48,5 @@
 "TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
 
 "ENTITY": "your-wandb-entity"
-"PROJECT": "v1_config3_full"
+"PROJECT": "v2_config3_full"
 "WANDB_MODE": "disabled"

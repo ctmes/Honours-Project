@@ -62,13 +62,28 @@ def softmin_sharpe(returns, periods_per_year: float, temperature: float = 1.0) -
     r = _flatten(returns)
     if r.size < 2:
         return np.nan
-    # Numerically stable softmin weights over returns.
-    z = -r / max(temperature, _EPS)
+    # The temperature is expressed in units of the return dispersion. Returns here
+    # are raw per-step portfolio-value changes (tens to hundreds of dollars), so a
+    # FIXED temperature of 1.0 makes softmax(-r/tau) collapse essentially all the
+    # weight onto the single worst step: the weighted variance goes to ~0 and the
+    # ratio explodes. That produced |softmin_sharpe| ~ 3e10 across every arm of
+    # eval_1136928. Scaling by sd makes the statistic scale-invariant, so
+    # temperature=1.0 means "one standard deviation" on any return scale.
+    sd = float(np.std(r))
+    if sd < _EPS:
+        return np.nan
+    tau = max(temperature * sd, _EPS)
+    z = -r / tau
     w = np.exp(z - z.max())
     w /= w.sum()
     w_mean = float(np.sum(w * r))
     w_var = float(np.sum(w * (r - w_mean) ** 2))
-    if w_var < _EPS:
+    # Degeneracy check RELATIVE to the return scale. An absolute floor on w_var is
+    # meaningless once returns carry units — on PnL-scale data it never triggered,
+    # and dividing by a near-zero variance is what produced the 3e10 values.
+    # Concentrating weight on the worst returns is the metric's intent, so this
+    # rejects only the case where the weighted variance has collapsed numerically.
+    if w_var < _EPS * sd * sd:
         return np.nan
     return float(w_mean / np.sqrt(w_var) * np.sqrt(periods_per_year))
 

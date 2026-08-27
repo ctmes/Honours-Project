@@ -5,10 +5,10 @@
 # The regime obs channel needs REGIME_LABELS_PATH + the TEST window map below,
 # or H4 is silently disabled at evaluation.
 #
-# Used via:  evaluate_seeds(project="v1_config3_full",
+# Used via:  evaluate_seeds(project="v2_config3_full",
 #                           run_names=["seed_0", ...],
 #                           yaml_path="config/rl_configs/eval_2024_test_config3.yaml",
-#                           adv_project="v1_config3_full",
+#                           adv_project="v2_config3_full",
 #                           adv_run_names=["seed_0", ...])   # self = reference
 # ============================================================================
 
@@ -44,5 +44,5 @@
 "TimePeriod": "2024_test"
 
 "ENTITY": "your-wandb-entity"
-"PROJECT": "v1_config3_full"
+"PROJECT": "v2_config3_full"
 "WANDB_MODE": "disabled"

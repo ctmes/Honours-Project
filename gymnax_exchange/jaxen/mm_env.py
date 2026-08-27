@@ -168,6 +168,26 @@ class MarketMakingAgent():
             self.action_fn = self._getActionMsgs_BobStrategy
         elif self.cfg.action_space == "bobRL":
             self.action_fn = self._getActionMsgs_BobRL
+            # n_actions MUST equal the bob_v0 ladder length. JAX clamps an
+            # out-of-range gather index to the LAST element, so an oversized
+            # n_actions silently folds the surplus actions onto the final,
+            # one-sided entry instead of erroring. With bob_v0=1 (a 3-entry
+            # ladder) and n_actions=6 this made actions 3/4/5 all "ask 2, bid 0":
+            # 4 of 6 actions were sell-only and only 1 of 6 quoted two-sided,
+            # giving a 1/6 prior on market making. That is what collapsed the
+            # 2026-08 production sweep (observed quote_presence 0.169 ~= 1/6)
+            # and failed the progression gate on inventory_sd.
+            _bob_ladder_len = {1: 3, 2: 5, 5: 11, 10: 21}
+            if self.cfg.bob_v0 not in _bob_ladder_len:
+                raise ValueError(
+                    f"cfg.bob_v0 must be one of {sorted(_bob_ladder_len)}, "
+                    f"got {self.cfg.bob_v0}")
+            if self.cfg.n_actions != _bob_ladder_len[self.cfg.bob_v0]:
+                raise ValueError(
+                    f"bobRL action-space mismatch: n_actions={self.cfg.n_actions} "
+                    f"but bob_v0={self.cfg.bob_v0} defines a "
+                    f"{_bob_ladder_len[self.cfg.bob_v0]}-action ladder. Set "
+                    f"n_actions={_bob_ladder_len[self.cfg.bob_v0]} (or change bob_v0).")
         elif self.cfg.action_space == "spread_skew":
             self.action_fn = self._getActionMsgs_spread_skew
         elif self.cfg.action_space == "directional_trading":

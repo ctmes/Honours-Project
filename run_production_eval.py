@@ -62,7 +62,13 @@ def main():
                     help="comma-separated subset of arms to evaluate")
     ap.add_argument("--n-seeds", type=int, default=None,
                     help="evaluate only the first N seeds (partial dry-run)")
-    ap.add_argument("--n-envs", type=int, default=16)
+    # Each seed's metrics are averaged over n_envs parallel eval episodes, so this
+    # sets the WITHIN-seed noise floor. The A-S arm is a deterministic fixed policy
+    # yet showed sharpe_off = 0.119 +/- 41.81 across seeds in eval_1136928 — that
+    # entire spread is rollout noise, and at n_envs=16 it swamped every between-arm
+    # effect (observed diffs 11-24 against a standard error of ~9). 64 episodes cuts
+    # the within-seed standard error in half; the eval nodes have ample RAM for it.
+    ap.add_argument("--n-envs", type=int, default=64)
     ap.add_argument("--step", type=int, default=None,
                     help="checkpoint step (default: preregistration checkpoint_step; "
                          "pass -1 for latest available)")
@@ -98,15 +104,15 @@ def main():
         "adv_step": step,
     }
     all_arms = {
-        "baseline": dict(project="v1_config1_baseline", run_names=run_names,
+        "baseline": dict(project="v2_config1_baseline", run_names=run_names,
                          yaml_path="config/rl_configs/eval_2024_test_config1.yaml",
                          n_envs=args.n_envs, periods_per_year=ppy, step=step,
                          seeds=list(range(len(run_names))), **adv_kw),
-        "adversarial": dict(project="v1_config2_adversarial", run_names=run_names,
+        "adversarial": dict(project="v2_config2_adversarial", run_names=run_names,
                             yaml_path="config/rl_configs/eval_2024_test_config2.yaml",
                             n_envs=args.n_envs, periods_per_year=ppy, step=step,
                             seeds=list(range(len(run_names))), **adv_kw),
-        "full": dict(project="v1_config3_full", run_names=run_names,
+        "full": dict(project="v2_config3_full", run_names=run_names,
                      yaml_path="config/rl_configs/eval_2024_test_config3.yaml",
                      n_envs=args.n_envs, periods_per_year=ppy, step=step,
                      seeds=list(range(len(run_names))), **adv_kw),

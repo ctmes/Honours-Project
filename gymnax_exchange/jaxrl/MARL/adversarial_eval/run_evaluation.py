@@ -42,7 +42,11 @@ from gymnax_exchange.jaxrl.MARL.adversarial_eval.aggregate import (
     compare_configs, progression_gate, summarize_seeds, format_comparison_table,
 )
 
-_RISK_METRICS = ("sharpe", "sortino", "softmin_sharpe", "cvar",
+# softmin_sharpe is deliberately ABSENT: w_mean/sqrt(w_var) diverges as the softmin
+# weights concentrate, so on returns containing a dominant terminal loss it reports
+# weight concentration rather than risk-adjusted return. cvar (mean of the worst
+# 10%) targets the same tail with a bounded fixed-fraction weighting.
+_RISK_METRICS = ("sharpe", "sortino", "cvar",
                  "peak_inventory", "inventory_sd", "quote_displacement",
                  "quote_presence",
                  # Manipulation actually delivered in each condition. rollout_metrics
@@ -51,7 +55,8 @@ _RISK_METRICS = ("sharpe", "sortino", "softmin_sharpe", "cvar",
                  # indistinguishable from attack-off — exactly the ambiguity in the
                  # eval_1121599 report, where every *_on equalled its *_off.
                  # Diagnostic/descriptive only: not in the confirmatory family.
-                 "mean_attack_rate",
+                 "mean_attack_rate", "mean_injected_volume",
+                 "injected_volume_per_attack",
                  "sortino_lowvol", "sortino_highvol", "regime_gap")
 
 # Confirmatory family (Holm-adjusted). Keep this SMALL: at n=20 seeds, paired-t
@@ -144,15 +149,30 @@ def run_full_evaluation(
     """
     metrics_by_config = {name: evaluate_seeds(**kw) for name, kw in configs.items()}
 
-    report = {"summaries": {c: summarize_seeds(m) for c, m in metrics_by_config.items()}}
+    report = {"summaries": {c: summarize_seeds(m) for c, m in metrics_by_config.items()},
+              # Raw per-seed arrays. Previously only the summaries were kept, so the
+              # distribution could not be inspected (e.g. HOW MANY seeds collapsed to
+              # quote_presence = 0) and the seed-to-seed pairing could not be checked
+              # without re-running the whole pass. Needed for every thesis figure too.
+              "per_seed": {c: {k: np.asarray(v) for k, v in m.items()}
+                           for c, m in metrics_by_config.items()}}
 
-    contrasts = []
-    if "adversarial" in metrics_by_config and "baseline" in metrics_by_config:
-        contrasts.append(("adversarial_vs_baseline", "adversarial", "baseline"))
-    if "full" in metrics_by_config and "adversarial" in metrics_by_config:
-        contrasts.append(("full_vs_adversarial", "full", "adversarial"))
-    if "full" in metrics_by_config and "baseline" in metrics_by_config:
-        contrasts.append(("full_vs_baseline", "full", "baseline"))
+    # Arms B/C/D/E form a 2x2 factorial over {detection, regime}, so each factor's
+    # effect is estimated at BOTH levels of the other — "full_vs_adversarial" alone
+    # confounds the two. "adversarial_vs_unconstrained" isolates the adversary's
+    # economic constraint (contribution 1), which no earlier run varied at all.
+    _CANDIDATES = [
+        ("adversarial_vs_baseline",        "adversarial",   "baseline"),      # H1
+        ("detection_vs_adversarial",       "detection",     "adversarial"),   # detection | regime off
+        ("full_vs_regime",                 "full",          "regime"),        # detection | regime on
+        ("regime_vs_adversarial",          "regime",        "adversarial"),   # regime | detection off
+        ("full_vs_detection",              "full",          "detection"),     # regime | detection on
+        ("full_vs_adversarial",            "full",          "adversarial"),   # joint
+        ("full_vs_baseline",               "full",          "baseline"),
+        ("adversarial_vs_unconstrained",   "adversarial",   "unconstrained"), # contribution 1
+    ]
+    contrasts = [(lab, a, b) for lab, a, b in _CANDIDATES
+                 if a in metrics_by_config and b in metrics_by_config]
 
     report["holm"] = {}
     for label, a, b in contrasts:
@@ -238,7 +258,10 @@ def format_report(report: dict) -> str:
                     f"  {metric:<24}{st['mean']:>12.4g} +/-{st['std']:>10.4g}"
                     f"   median={st['median']:>11.4g}   n={st['n']}")
             lines.append("")
-    for contrast in ("adversarial_vs_baseline", "full_vs_adversarial", "full_vs_baseline"):
+    for contrast in ("adversarial_vs_baseline", "detection_vs_adversarial",
+                     "full_vs_regime", "regime_vs_adversarial", "full_vs_detection",
+                     "full_vs_adversarial", "full_vs_baseline",
+                     "adversarial_vs_unconstrained"):
         if contrast in report:
             lines.append(format_comparison_table(report[contrast], title=contrast))
             holm = report.get("holm", {}).get(contrast)

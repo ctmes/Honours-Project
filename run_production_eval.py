@@ -58,7 +58,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".", help="repo root (must contain config/, checkpoints/)")
     ap.add_argument("--out", default="results/eval", help="output prefix (writes .json and .txt)")
-    ap.add_argument("--arms", default="baseline,adversarial,full,as",
+    ap.add_argument("--arms",
+                    default="baseline,adversarial,detection,regime,full,unconstrained,as",
                     help="comma-separated subset of arms to evaluate")
     ap.add_argument("--n-seeds", type=int, default=None,
                     help="evaluate only the first N seeds (partial dry-run)")
@@ -91,7 +92,7 @@ def main():
     signed_off = bool(prereg.get("signed_off"))
 
     partial = bool(args.n_seeds) or set(args.arms.split(",")) != {
-        "baseline", "adversarial", "full", "as"}
+        "baseline", "adversarial", "detection", "regime", "full", "unconstrained", "as"}
     if not signed_off:
         print("=" * 70)
         print("PREREGISTRATION NOT SIGNED OFF — output is ESTIMATION-ONLY.")
@@ -112,10 +113,22 @@ def main():
                             yaml_path="config/rl_configs/eval_2024_test_config2.yaml",
                             n_envs=args.n_envs, periods_per_year=ppy, step=step,
                             seeds=list(range(len(run_names))), **adv_kw),
+        "detection": dict(project="v2_config4_detection", run_names=run_names,
+                          yaml_path="config/rl_configs/eval_2024_test_config4.yaml",
+                          n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                          seeds=list(range(len(run_names))), **adv_kw),
+        "regime": dict(project="v2_config5_regime", run_names=run_names,
+                       yaml_path="config/rl_configs/eval_2024_test_config5.yaml",
+                       n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                       seeds=list(range(len(run_names))), **adv_kw),
         "full": dict(project="v2_config3_full", run_names=run_names,
                      yaml_path="config/rl_configs/eval_2024_test_config3.yaml",
                      n_envs=args.n_envs, periods_per_year=ppy, step=step,
                      seeds=list(range(len(run_names))), **adv_kw),
+        "unconstrained": dict(project="v2_config6_unconstrained", run_names=run_names,
+                              yaml_path="config/rl_configs/eval_2024_test_config6.yaml",
+                              n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                              seeds=list(range(len(run_names))), **adv_kw),
         "as": dict(fixed_policy=True, n_seeds=len(run_names),
                    yaml_path="config/rl_configs/eval_2024_test_as.yaml",
                    n_envs=args.n_envs, periods_per_year=ppy,

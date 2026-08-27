@@ -51,6 +51,16 @@ def sharpe_ratio(returns, periods_per_year: float) -> float:
 def softmin_sharpe(returns, periods_per_year: float, temperature: float = 1.0) -> float:
     """Annualised SoftMin Sharpe (Spooner & Savani robustness check).
 
+    NOT REPORTED — retained for reference only (see _RISK_METRICS in
+    run_evaluation.py). The estimator is w_mean / sqrt(w_var) under softmin
+    weights, and as those weights concentrate on the worst observation w_var -> 0
+    while w_mean -> r_min, so the statistic diverges. In that regime its magnitude
+    tracks weight concentration, not risk-adjusted return. Eval returns contain a
+    dominant terminal-unwind loss, which puts it in that regime routinely, and no
+    temperature escapes it: small tau concentrates and diverges, large tau just
+    recovers vanilla Sharpe. cvar() targets the same tail with a bounded
+    fixed-fraction weighting and is reported instead.
+
     A Sharpe variant that downweights toward the *worst* returns via a softmin
     weighting w_i = softmax(-r_i / temperature), so episodic outlier losses
     dominate the ratio rather than the sustained mean. Targets episodic outliers

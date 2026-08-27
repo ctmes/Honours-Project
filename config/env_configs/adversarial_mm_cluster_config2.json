@@ -82,8 +82,8 @@
       "attack_on_prob": 0.1,
       "attack_off_prob": 0.1,
       "budget_per_episode": 1000000.0,
-      "c_fill": 0.0,
-      "c_reg": 0.0,
+      "c_fill": 0.001,
+      "c_reg": 0.0005,
       "num_messages_by_agent": 0,
       "num_action_messages_by_agent": 0
     }

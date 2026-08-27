@@ -1,5 +1,4 @@
 {
-  "_comment": "Config-1 TRAINING arm (vanilla IPPO baseline): no attack ever reaches the MM (telegraph pinned off + zero budget), detection head and regime/detection obs channels disabled so the MM trains on exactly the clean-market observation distribution. Evaluate this arm's checkpoints with eval_2024_test_config1.yaml (adversary re-enabled, channels still zeroed) against a COMMON reference adversary.",
   "world_config": {
     "maxint": 2147483647,
     "init_id": -2,
@@ -67,10 +66,10 @@
       "n_actions": 5,
       "num_messages_by_agent": 4,
       "num_action_messages_by_agent": 2,
-      "use_detection_head": false,
+      "use_detection_head": true,
       "detection_loss_coef": 0.5,
       "regime_conditioning": false,
-      "prev_detection_in_obs": false,
+      "prev_detection_in_obs": true,
       "pcgrad_enabled": true
     },
     "Spoofing": {
@@ -80,9 +79,9 @@
       "observation_space": "adversarial_lob",
       "n_spoof_levels": 5,
       "inject_mult": 2.0,
-      "attack_on_prob": 0.0,
-      "attack_off_prob": 1.0,
-      "budget_per_episode": 0.0,
+      "attack_on_prob": 0.1,
+      "attack_off_prob": 0.1,
+      "budget_per_episode": 1000000.0,
       "c_fill": 0.001,
       "c_reg": 0.0005,
       "num_messages_by_agent": 0,
@@ -92,5 +91,6 @@
   "number_of_agents_per_type": [
     1,
     1
-  ]
+  ],
+  "_comment": "Config-4 arm C: constrained adversary + DETECTION HEAD ONLY (regime_conditioning off). With arms B/D/E this completes the 2x2 factorial over {detection, regime} so their main effects are separable — config-3 confounds them. Evaluate with eval_2024_test_config4.yaml."
 }

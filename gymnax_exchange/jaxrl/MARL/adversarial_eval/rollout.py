@@ -216,7 +216,7 @@ def run_rollout(env, networks, train_states, config, attack_mode, rng, n_envs, n
     tick_size = float(env.multi_agent_config.world_config.tick_size)
 
     series = {"ret": [], "inventory": [], "det_prob": [], "adv_label": [],
-              "regime": [], "quote_disp_ticks": []}
+              "regime": [], "quote_disp_ticks": [], "volume_injected": []}
 
     for _ in range(n_steps):
         actions, det_mm = [], None
@@ -251,6 +251,11 @@ def run_rollout(env, networks, train_states, config, attack_mode, rng, n_envs, n
         series["inventory"].append(_per_env(mm_info["inventory"], n_envs))
         series["det_prob"].append(np.asarray(det_mm).reshape(n_envs, -1).mean(axis=1))
         series["adv_label"].append(np.asarray(info["adv_label"]).reshape(-1))
+        # Size of the manipulation actually delivered, not just whether one happened.
+        # mean_attack_rate answers "how often"; this answers "how much" — together they
+        # are the attack profile the constrained-vs-unconstrained comparison rests on.
+        series["volume_injected"].append(
+            np.asarray(info["volume_injected_step"], dtype=np.float64).reshape(-1))
         series["regime"].append(np.asarray(info["regime"]).reshape(-1))
 
         # Quote displacement (proposal behavioural metric): |quoted mid - true end mid|
@@ -292,7 +297,6 @@ def rollout_metrics(arrays, periods_per_year):
     n_envs = ret.shape[1]
     sharpe = _nanmean([M.sharpe_ratio(ret[:, e], periods_per_year) for e in range(n_envs)])
     sortino = _nanmean([M.sortino_ratio(ret[:, e], periods_per_year) for e in range(n_envs)])
-    softmin = _nanmean([M.softmin_sharpe(ret[:, e], periods_per_year) for e in range(n_envs)])
     cvar = _nanmean([M.cvar(ret[:, e], 0.10) for e in range(n_envs)])
     peak_inv = _nanmean([M.peak_inventory_excursion(inv[:, e]) for e in range(n_envs)])
     inv_sd = _nanmean([M.inventory_sd(inv[:, e]) for e in range(n_envs)])
@@ -329,7 +333,6 @@ def rollout_metrics(arrays, periods_per_year):
     return {
         "sharpe": float(sharpe),
         "sortino": float(sortino),
-        "softmin_sharpe": float(softmin),
         "cvar": float(cvar),
         "peak_inventory": float(peak_inv),
         "inventory_sd": float(inv_sd),
@@ -340,6 +343,9 @@ def rollout_metrics(arrays, periods_per_year):
         "sortino_highvol": float(sortino_high),
         "regime_gap": float(regime_gap),
         "mean_attack_rate": float(arrays["adv_label"].mean()),
+        "mean_injected_volume": float(arrays["volume_injected"].mean()),
+        "injected_volume_per_attack": float(
+            arrays["volume_injected"].sum() / max(arrays["adv_label"].sum(), 1.0)),
     }
 
 

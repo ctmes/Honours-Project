@@ -42,6 +42,46 @@ export WANDB_MODE=disabled
 export PYTHONUNBUFFERED=1
 export JAX_PLATFORMS=cpu
 
+# --- refuse to be the second writer of this seed's checkpoint dir ----------
+# The header above used to just SAY "check nothing is already queued" and leave
+# it to the operator. On 2026-08-27 that check was skipped: arrays 1137496-500
+# and 1137535-539 were both submitted for arms 2-6, and seeds 0-5 of each arm
+# ended up with two concurrent orbax writers. A comment is not an enforcement
+# mechanism, so this is one.
+#
+# The lock is per SEED, not per arm, because that is the granularity orbax
+# corrupts at, and because a resume after a wall-kill must still be allowed:
+# a lock whose owning job is no longer in squeue is stale and gets taken over.
+PROJECT=$(sed -n 's/^"\?PROJECT"\?: *"\?\([^"]*\)"\?.*/\1/p' \
+          "config/rl_configs/${CONFIG_NAME}.yaml" | tail -1)
+for a in "$@"; do
+    case "$a" in PROJECT=*) PROJECT=${a#PROJECT=} ;; esac
+done
+if [[ -z "$PROJECT" ]]; then
+    echo "FATAL: could not resolve PROJECT from ${CONFIG_NAME}.yaml or overrides" >&2
+    exit 1
+fi
+
+SEED_DIR="checkpoints/MARLCheckpoints/${PROJECT}/seed_${SLURM_ARRAY_TASK_ID}"
+LOCK="${SEED_DIR}/.writer"
+mkdir -p "$SEED_DIR"
+if [[ -f "$LOCK" ]]; then
+    owner=$(awk '{print $1}' "$LOCK")
+    # A sibling task of the SAME array is not a clash - only a different array
+    # job is. squeue returning a line means that job is still alive.
+    if [[ "${owner%%_*}" != "${SLURM_ARRAY_JOB_ID}" ]] \
+       && [[ -n "$(squeue -j "${owner%%_*}" -h -o %i 2>/dev/null)" ]]; then
+        echo "REFUSING TO RUN: ${SEED_DIR} is already being written by job ${owner}," >&2
+        echo "which is still in squeue. Two concurrent orbax writers corrupt the" >&2
+        echo "directory silently. Cancel one of them, then resubmit." >&2
+        exit 1
+    fi
+    echo "stale lock from job ${owner} (no longer queued) - taking over"
+fi
+echo "${SLURM_JOB_ID} $(hostname) $(date -Is)" > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT
+echo "WRITER-LOCK ok: ${SEED_DIR} held by ${SLURM_JOB_ID}"
+
 /home/cmelville/.conda/envs/honours/bin/python \
     gymnax_exchange/jaxrl/MARL/ippo_adversarial.py \
     --config-name=${CONFIG_NAME} \

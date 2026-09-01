@@ -211,7 +211,22 @@ find "$REPO/results" -maxdepth 1 -name 'eval_*' -newermt "$SINCE" -print 2>/dev/
 # --- 5. ship it -----------------------------------------------------------
 OUT="$HOME/runs_${STAMP}.tar.gz"
 tar czf "$OUT" -C "$STAGE" digest.txt jobs.psv results
-echo "wrote $OUT  ($(du -h "$OUT" | cut -f1))"
+# ls, not du: /home is Lustre, and du reports allocated blocks, which reads back
+# as 0 for a file whose stripes have not flushed yet - indistinguishable from an
+# empty digest. The digest byte count is the number that says whether sacct
+# actually returned anything.
+echo "wrote $OUT  ($(stat -c %s "$OUT") bytes, digest $(wc -c < "$D") bytes)"
+if (( $(wc -c < "$D") < 1024 )); then
+    echo "WARNING: digest is nearly empty - sacct returned no jobs in this window."
+    echo "         Widen it (-d 60) or name the array ids directly."
+fi
 echo
-echo "from the laptop:"
-echo "  scp ${USER}@kaya.hpc.uwa.edu.au:${OUT} D:/tmp/"
+# Print the destination as "." after a cd, NOT as "D:/tmp/". scp splits its
+# arguments on the first colon, so a Windows destination path is parsed as
+# hostname "D" with path "/tmp/" and the copy dies on "could not resolve
+# hostname d". Saying RUN THIS ON THE LAPTOP is also not decoration: pasting
+# both lines into this shell runs the scp here, where it means something
+# entirely different and fails the same way.
+echo "RUN THIS ON THE LAPTOP (not in this shell):"
+echo '  cd D:\tmp'
+echo "  scp ${USER}@kaya.hpc.uwa.edu.au:${OUT} ."

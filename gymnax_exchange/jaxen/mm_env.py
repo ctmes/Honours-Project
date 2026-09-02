@@ -1574,14 +1574,22 @@ class MarketMakingAgent():
         # a fix and changed nothing. Mirrored here from that implementation.
         liquidating = jnp.zeros((), dtype=bool)
         if self.cfg.auto_liquidate_threshold != 0:
+            # inventory arrives as shape (1,) under the live vmap, not as a
+            # scalar. Left as-is it makes liq_quants (2,1), the jnp.where below
+            # broadcasts that against a (2,) quants to (2,2), and the flatten
+            # further down silently turns two messages into four - which blows
+            # up in jnp.stack as a shape mismatch against types/sides/prices.
+            # Ravel to a scalar so every liquidation array is (2,) like the
+            # ladder arrays it replaces.
+            inv = jnp.ravel(jnp.asarray(agent_state.inventory))[0]
             half_spread = (best_ask - best_bid) // 2
             liq_types = jnp.asarray([4, 4], dtype=jnp.int32)   # 4=IOC
             # -1 = execute against the ask (buy, covers a short)
             #  1 = execute against the bid (sell, reduces a long)
             liq_sides = jnp.asarray([-1, 1], dtype=jnp.int32)
             liq_quants = jnp.asarray(
-                [self.cfg.auto_liquidate_alpha * jnp.maximum(-agent_state.inventory, 0),
-                 self.cfg.auto_liquidate_alpha * jnp.maximum(agent_state.inventory, 0)],
+                [self.cfg.auto_liquidate_alpha * jnp.maximum(-inv, 0),
+                 self.cfg.auto_liquidate_alpha * jnp.maximum(inv, 0)],
                 dtype=jnp.int32)
             # Priced through the book so the IOC actually clears. Paying that spread
             # is the real cost of unwinding, and is the signal the agent needs:
@@ -1589,7 +1597,7 @@ class MarketMakingAgent():
             liq_prices = jnp.asarray(
                 [best_ask + half_spread * 10, best_bid - half_spread * 10],
                 dtype=jnp.int32)
-            liquidating = jnp.abs(agent_state.inventory) > self.cfg.auto_liquidate_threshold
+            liquidating = jnp.abs(inv) > self.cfg.auto_liquidate_threshold
             types = jnp.where(liquidating, liq_types, types)
             sides = jnp.where(liquidating, liq_sides, sides)
             quants = jnp.where(liquidating, liq_quants, quants)

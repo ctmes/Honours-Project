@@ -132,11 +132,11 @@ def _split_by_terminal_entropy(t, mm_phase, seeds):
     and 1.15) and a hard-coded number would silently mis-split a short pilot.
 
     Validated against the v2 baseline, where quote_presence is known: the split
-    recovers 19 of 20 seeds. The miss is the failure mode to remember -- seed 10
+    recovers 19 of 20 seeds. The miss is the failure mode to remember as seed 10
     ends at entropy 0.00 with quote_presence 1.00, i.e. a policy can be
     DETERMINISTIC AND QUOTING. Low entropy means "committed", not "committed to
     doing nothing", so this proxy over-reports collapse and its verdict is
-    provisional until the pilot's checkpoints are actually evaluated.
+    provisional until the pilot's checkpoints are evaluated.
     """
     term = {}
     for s in seeds:
@@ -173,6 +173,7 @@ def analyse(tsv: str, eval_json, arm: str, qp_cut: float) -> None:
         if not collapsed or not quoting:
             print("  (only one group present -- group comparisons below are skipped)\n")
     else:
+        qp = None
         collapsed, quoting, term = _split_by_terminal_entropy(t, mm_phase, seeds)
         print("no --eval given: seeds split on TERMINAL ENTROPY, not quote_presence")
         print("  low-entropy  (%d): %s" % (len(collapsed), collapsed))
@@ -229,8 +230,11 @@ def analyse(tsv: str, eval_json, arm: str, qp_cut: float) -> None:
             print("  %-10s n=%-3d mean=%10.4f  median=%10.4f  sd=%9.4f"
                   % (name, len(vals), np.mean(vals), np.median(vals), np.std(vals)))
 
+    # Only meaningful against measured quote_presence. Without --eval the seed
+    # grouping is itself derived from the traces, so correlating reward against
+    # it would just be measuring the split back out of the same data.
     common = sorted(finals)
-    if len(common) >= 4:
+    if qp is not None and len(common) >= 4:
         r = np.array([finals[s] for s in common])
         q = qp[common]
         rank = lambda v: np.argsort(np.argsort(v)).astype(float)
@@ -270,13 +274,22 @@ def analyse(tsv: str, eval_json, arm: str, qp_cut: float) -> None:
         print("VERDICT: (C) WITHIN-EPISODE RATCHET -- the dominant effect.")
         print("Reward decays %.1f per episode and resets with it, so the policy is"
               % (drift[1] - drift[2]))
-        print("bleeding on a position it accumulates and never flattens. Check")
-        print("inv_penalty in the env config before touching anything else: if it")
-        print("is \"none\", nothing in the reward pushes inventory toward zero and")
-        print("the only way to stop the bleed growing is to stop quoting -- which")
-        print("is an absorbing state, because a policy that never quotes never")
-        print("gets a fill to learn from. Seeds differ only in whether they fell")
-        print("in. That is a reward-design fault, not a hyperparameter one.")
+        print("bleeding on a position it accumulates and never flattens.")
+        print("")
+        print("Check the ACTION SPACE before the reward. The bob_v0 ladder emits two")
+        print("LIMIT orders at best_bid/best_ask, so the MM can only stop adding to a")
+        print("position, never reduce one -- it has to wait to be filled on the other")
+        print("side. auto_liquidate_threshold is the only mechanism that actively")
+        print("unwinds, and 0 DISABLES it (mm_env.py:1103), against a default of 10000.")
+        print("With it off and a passive-only ladder, inventory is a one-way ratchet no")
+        print("reward term can undo: the 2026-09-02 pilots added a quadratic penalty at")
+        print("F=1000 and F=250 and the decay went from -32 to -1130 and -5610, scaling")
+        print("with 1/F while the inventory path barely moved. Punishing an agent for a")
+        print("state it has no action to escape only adds a state-dependent constant")
+        print("that swamps credit assignment.")
+        print("")
+        print("So: give it a way out first (auto_liquidate_threshold, or aggressive")
+        print("entries in the ladder), and only then ask what the reward should weigh.")
     elif np.isfinite(cm) and np.isfinite(qm) and cm > qm:
         print("VERDICT: (B) NO-TRADE OPTIMUM.")
         print("Seeds that stopped quoting earn MORE (%.4f) than seeds that kept" % cm)

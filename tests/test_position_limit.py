@@ -26,6 +26,17 @@ _BEST_BID, _BEST_ASK = 9900, 10100
 _IOC, _LIMIT = 4, 1
 
 
+def _s(x):
+    """First element as a Python int.
+
+    The extras dict carries whatever rank the inputs had, so posted_bid_price is
+    Array([9900]) under the vmapped shape and a bare 9900 under the scalar one.
+    int() rejects rank-1, and that is a property of the fixture, not a defect -
+    the live code consumes these as arrays.
+    """
+    return int(jnp.ravel(jnp.asarray(x))[0])
+
+
 def _agent(threshold, alpha=1.0):
     cfg = AdversarialMMConfig(
         action_space="bobRL", bob_v0=2, n_actions=5,
@@ -53,12 +64,15 @@ def _world():
     )
 
 
-# Under the live vmap inventory arrives as shape (1,), not as a scalar. The
-# first version of these tests passed a Python int and therefore could not
-# catch the bug that took down pilot arrays 1168007/1168008: liq_quants
-# inherited the (1,) shape, became (2,1), broadcast against a (2,) quants to
-# (2,2), and the flatten downstream turned two messages into four. Every test
-# below runs under BOTH shapes.
+# Under the live vmap BOTH inventory and action arrive as shape (1,), not as
+# scalars, and the tests must mirror that for every input or they pass against
+# code that cannot run in production. Two shape bugs of the same family got
+# through before this was true of the fixture:
+#   1168007/1168008 - inventory (1,) made liq_quants (2,1)
+#   1168070         - action (1,) makes bid_quants[action] (1,), so `quants` is
+#                     (2,1) and a (2,) replacement broadcasts it to (2,2)
+# Both surfaced only in jnp.stack, because the flatten() downstream hides a
+# wrong row count until then. Every test below runs under BOTH shapes.
 _SHAPES = {"scalar": lambda v: v, "vmapped": lambda v: jnp.array([v])}
 
 
@@ -75,7 +89,8 @@ def _params():
 
 def _act(threshold, inventory, action=0, shape="vmapped"):
     msgs, extras = _agent(threshold)._getActionMsgs_BobRL(
-        jnp.asarray(action), _world(), _state(_SHAPES[shape](inventory)), _params())
+        jnp.asarray(_SHAPES[shape](action)), _world(),
+        _state(_SHAPES[shape](inventory)), _params())
     # The invariant that actually broke in production: six stacked components
     # plus two time fields, one row per message, and exactly TWO messages.
     assert msgs.shape == (2, 8), (
@@ -126,8 +141,8 @@ def test_under_threshold_still_quotes(shape):
     """Below the limit nothing changes - the ladder posts limit orders as before."""
     r = _act(threshold=50, inventory=10, shape=shape)
     assert list(r["types"]) == [_LIMIT, _LIMIT]
-    assert int(r["extras"]["posted_bid_price"]) == _BEST_BID
-    assert int(r["extras"]["posted_ask_price"]) == _BEST_ASK
+    assert _s(r["extras"]["posted_bid_price"]) == _BEST_BID
+    assert _s(r["extras"]["posted_ask_price"]) == _BEST_ASK
 
 
 @pytest.mark.parametrize('shape', list(_SHAPES))
@@ -140,8 +155,8 @@ def test_liquidation_is_not_counted_as_a_quote(shape):
     preregistration uses to decide whether a result is interpretable at all.
     """
     r = _act(threshold=50, inventory=200, shape=shape)
-    assert int(r["extras"]["posted_bid_price"]) == 0
-    assert int(r["extras"]["posted_ask_price"]) == 0
+    assert _s(r["extras"]["posted_bid_price"]) == 0
+    assert _s(r["extras"]["posted_ask_price"]) == 0
 
 
 @pytest.mark.parametrize('shape', list(_SHAPES))

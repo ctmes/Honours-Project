@@ -1587,10 +1587,15 @@ class MarketMakingAgent():
             # -1 = execute against the ask (buy, covers a short)
             #  1 = execute against the bid (sell, reduces a long)
             liq_sides = jnp.asarray([-1, 1], dtype=jnp.int32)
-            liq_quants = jnp.asarray(
-                [self.cfg.auto_liquidate_alpha * jnp.maximum(-inv, 0),
-                 self.cfg.auto_liquidate_alpha * jnp.maximum(inv, 0)],
-                dtype=jnp.int32)
+            # Substitute into bid_quant/ask_quant rather than building a
+            # parallel [buy, sell] array. `action` arrives shape (1,) under the
+            # live vmap, so bid_quants[action] is (1,) and `quants` is (2,1) -
+            # a (2,) replacement broadcasts to (2,2) and the flatten below then
+            # yields four messages instead of two. Going through the components
+            # inherits whatever shape they already have, so this cannot drift
+            # again if `action` changes rank.
+            liq_buy = self.cfg.auto_liquidate_alpha * jnp.maximum(-inv, 0)
+            liq_sell = self.cfg.auto_liquidate_alpha * jnp.maximum(inv, 0)
             # Priced through the book so the IOC actually clears. Paying that spread
             # is the real cost of unwinding, and is the signal the agent needs:
             # skew your quotes, or pay to be flattened.
@@ -1600,7 +1605,11 @@ class MarketMakingAgent():
             liquidating = jnp.abs(inv) > self.cfg.auto_liquidate_threshold
             types = jnp.where(liquidating, liq_types, types)
             sides = jnp.where(liquidating, liq_sides, sides)
-            quants = jnp.where(liquidating, liq_quants, quants)
+            # Rebuilt from the components so this keeps `quants`' original
+            # shape whatever rank bid_quant/ask_quant happen to have.
+            quants = jnp.asarray([jnp.where(liquidating, liq_buy, bid_quant),
+                                  jnp.where(liquidating, liq_sell, ask_quant)],
+                                 dtype=jnp.int32)
             prices = jnp.where(liquidating, liq_prices, prices)
 
 

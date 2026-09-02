@@ -120,20 +120,68 @@ def _load_tsv(path):
     return {n: raw[n] for n in raw.dtype.names}
 
 
-def analyse(tsv: str, eval_json: str, arm: str, qp_cut: float) -> None:
-    t = _load_tsv(tsv)
-    per_seed = json.load(open(eval_json))["per_seed"][arm]
-    qp = np.asarray(per_seed["quote_presence_off"], dtype=float)
+def _split_by_terminal_entropy(t, mm_phase, seeds):
+    """Classify seeds without an eval JSON, using end-of-run policy entropy.
 
+    A pilot has no evaluated checkpoints, so quote_presence does not exist yet.
+    Terminal entropy stands in for it: on the v2 baseline the collapsed seeds
+    ended at 0.02-0.06 and the quoting ones at 0.93-1.15, cleanly separated.
+    The cut is the LARGEST GAP in the sorted values rather than a fixed
+    threshold, because the separating value moves with how long the run went
+    (at update 200 the two groups sat at 0.39 and 1.23, at update 1000 at 0.02
+    and 1.15) and a hard-coded number would silently mis-split a short pilot.
+
+    Validated against the v2 baseline, where quote_presence is known: the split
+    recovers 19 of 20 seeds. The miss is the failure mode to remember -- seed 10
+    ends at entropy 0.00 with quote_presence 1.00, i.e. a policy can be
+    DETERMINISTIC AND QUOTING. Low entropy means "committed", not "committed to
+    doing nothing", so this proxy over-reports collapse and its verdict is
+    provisional until the pilot's checkpoints are actually evaluated.
+    """
+    term = {}
+    for s in seeds:
+        m = mm_phase & (t["seed"] == s)
+        e = np.asarray(t["entropy"][m], dtype=float)
+        e = e[np.isfinite(e)]
+        if e.size:
+            term[int(s)] = float(e[-20:].mean())
+    if len(term) < 3:
+        return sorted(term), [], term
+    order = sorted(term, key=term.get)
+    vals = np.array([term[s] for s in order])
+    gaps = np.diff(vals)
+    cut = int(np.argmax(gaps))
+    # A split is only meaningful if the gap actually dominates the spread.
+    if gaps[cut] < 0.25 * (vals[-1] - vals[0] + 1e-9):
+        return [], sorted(term), term
+    return sorted(order[:cut + 1]), sorted(order[cut + 1:]), term
+
+
+def analyse(tsv: str, eval_json, arm: str, qp_cut: float) -> None:
+    t = _load_tsv(tsv)
     mm_phase = np.asarray([str(p) == "mm" for p in t["phase"]])
     seeds = np.unique(t["seed"]).astype(int)
-    collapsed = sorted(int(s) for s in seeds if s < len(qp) and qp[s] < qp_cut)
-    quoting = sorted(int(s) for s in seeds if s < len(qp) and qp[s] >= qp_cut)
-    if not collapsed or not quoting:
-        sys.exit("need both groups; collapsed=%s quoting=%s" % (collapsed, quoting))
 
-    print("arm=%s  collapsed (qp<%g): %d seeds  %s" % (arm, qp_cut, len(collapsed), collapsed))
-    print("        quoting:            %d seeds  %s\n" % (len(quoting), quoting))
+    if eval_json:
+        qp = np.asarray(json.load(open(eval_json))["per_seed"][arm]["quote_presence_off"],
+                        dtype=float)
+        collapsed = sorted(int(s) for s in seeds if s < len(qp) and qp[s] < qp_cut)
+        quoting = sorted(int(s) for s in seeds if s < len(qp) and qp[s] >= qp_cut)
+        print("arm=%s  collapsed (qp<%g): %d seeds  %s"
+              % (arm, qp_cut, len(collapsed), collapsed))
+        print("        quoting:            %d seeds  %s\n" % (len(quoting), quoting))
+        if not collapsed or not quoting:
+            print("  (only one group present -- group comparisons below are skipped)\n")
+    else:
+        collapsed, quoting, term = _split_by_terminal_entropy(t, mm_phase, seeds)
+        print("no --eval given: seeds split on TERMINAL ENTROPY, not quote_presence")
+        print("  low-entropy  (%d): %s" % (len(collapsed), collapsed))
+        print("  high-entropy (%d): %s" % (len(quoting), quoting))
+        print("  per seed: " + "  ".join("%d=%.2f" % (s, term[s]) for s in sorted(term)))
+        if not collapsed:
+            print("  no bimodal split -- every seed retained entropy, which is what a")
+            print("  fixed ratchet looks like. Read WITHIN-EPISODE DRIFT below.")
+        print()
 
     def series(seed, col):
         m = mm_phase & (t["seed"] == seed)
@@ -191,8 +239,10 @@ def analyse(tsv: str, eval_json: str, arm: str, qp_cut: float) -> None:
               % (rho, len(common)))
         print("  Negative => the less a seed quoted, the more it earned.")
 
-    cm = np.mean([finals[s] for s in collapsed if s in finals]) if collapsed else np.nan
-    qm = np.mean([finals[s] for s in quoting if s in finals]) if quoting else np.nan
+    _cv = [finals[s] for s in collapsed if s in finals]
+    _qv = [finals[s] for s in quoting if s in finals]
+    cm = float(np.mean(_cv)) if _cv else np.nan
+    qm = float(np.mean(_qv)) if _qv else np.nan
 
     # --- 3. within-episode drift ------------------------------------------
     # The (A)/(B) split above compares seeds to each other at the END of
@@ -296,7 +346,9 @@ def main():
 
     a = sub.add_parser("analyse", help="classify the collapse from the TSV")
     a.add_argument("tsv")
-    a.add_argument("--eval", required=True, help="eval_*.json carrying per_seed metrics")
+    a.add_argument("--eval", default=None,
+                   help="eval_*.json with per_seed metrics; omit for a pilot with no "
+                        "evaluated checkpoints (seeds then split on terminal entropy)")
     a.add_argument("--arm", default="baseline")
     a.add_argument("--qp-cut", type=float, default=0.01)
 

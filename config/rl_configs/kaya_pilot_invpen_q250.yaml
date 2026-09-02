@@ -1,0 +1,72 @@
+# ============================================================================
+# PILOT (not a preregistered arm) - does a quadratic inventory penalty stop the
+# within-episode ratchet that made 12 of 20 v2 baseline seeds stop quoting?
+#
+# Identical to kaya_config1_baseline.yaml except ENV_CONFIG and PROJECT. The
+# env config is identical to config1's except inv_penalty (none -> quadratic)
+# and the factor that mode needs. ONE variable changes; everything else -
+# seeds, LR, GAMMA, FREEZE_ALTERNATION, action ladder - is held at the
+# production values so the pilot is readable against the v2 baseline traces.
+#
+# Launch (6 seeds, 200 updates, ~1.7h each on 8 cores):
+#   sbatch --array=0-5 slurm_cpu_sweep.sh kaya_pilot_invpen_q250 TOTAL_TIMESTEPS=1638400
+#
+# 200 updates is 16 episodes at episode_time/NUM_STEPS = 6400/512 = 12.5
+# updates per episode - enough to see several sawtooth periods, and well past
+# update 32, where the collapsed v2 seeds had already halved their entropy.
+#
+# ANNEAL_TOTAL_UPDATES stays 1002 ON PURPOSE. The pilot is read against the v2
+# baseline's first 200 updates, so the LR at update k must match what that run
+# saw at update k; annealing over 200 instead would confound the comparison
+# with a different learning-rate trajectory.
+#
+# NO CONTROL ARM IS NEEDED: array 1137481 already trained inv_penalty="none"
+# under exactly these settings, and its first 200 updates are the control.
+# Extract them with
+#   python diagnose_collapse.py extract --job 1137481 -o traces_baseline.tsv
+#
+# READ THE RESULT with diagnose_collapse.py: the pilot succeeds if the
+# WITHIN-EPISODE DRIFT section reports a decay near zero instead of the -31.89
+# the v2 baseline shows, and if quote_presence stays off the floor.
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 2736128     # PHASE 1 (Q1) budget: 334 updates; q2/q3 phases override
+"ANNEAL_TOTAL_UPDATES": 1002   # LR anneal spans the whole Q1->Q2->Q3 chain
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42                     # overridden per job: SEED=${SLURM_ARRAY_TASK_ID}
+
+# Adversarial-specific (detection/PCGrad inert in this arm: use_detection_head
+# is false in the env config, so the BCE branch is skipped entirely)
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+# Regime labels are loaded for logging/eval splits in every arm; the MM's
+# regime obs channel is only active in config 3 (regime_conditioning flag).
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_q1.json"   # phase 1; overridden per phase
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_pilot_invpen_q250.json"
+
+"TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "pilot_invpen_q250"
+"WANDB_MODE": "disabled"

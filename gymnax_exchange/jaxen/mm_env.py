@@ -1561,6 +1561,40 @@ class MarketMakingAgent():
         prices = jnp.asarray([best_bid, best_ask], dtype=jnp.int32)
         trader_ids = jnp.full(2, agent_params.trader_id, dtype=jnp.int32)
 
+        # --- position limit -------------------------------------------------
+        # This ladder posts two LIMIT orders at the touch and nothing else, so it
+        # can only stop ADDING to a position, never reduce one - it has to wait to
+        # be filled on the other side, which a trending market will not do.
+        # Inventory was therefore a one-way ratchet: the v2 sweep bled monotonically
+        # across every episode and 12 of 20 baseline seeds gave up quoting entirely.
+        #
+        # auto_liquidate_threshold already existed for exactly this, but only inside
+        # _getActionMsgs_fixedQuant. On the bobRL path the key was read from config
+        # and silently never used - no error, no warning - so setting it looked like
+        # a fix and changed nothing. Mirrored here from that implementation.
+        liquidating = jnp.zeros((), dtype=bool)
+        if self.cfg.auto_liquidate_threshold != 0:
+            half_spread = (best_ask - best_bid) // 2
+            liq_types = jnp.asarray([4, 4], dtype=jnp.int32)   # 4=IOC
+            # -1 = execute against the ask (buy, covers a short)
+            #  1 = execute against the bid (sell, reduces a long)
+            liq_sides = jnp.asarray([-1, 1], dtype=jnp.int32)
+            liq_quants = jnp.asarray(
+                [self.cfg.auto_liquidate_alpha * jnp.maximum(-agent_state.inventory, 0),
+                 self.cfg.auto_liquidate_alpha * jnp.maximum(agent_state.inventory, 0)],
+                dtype=jnp.int32)
+            # Priced through the book so the IOC actually clears. Paying that spread
+            # is the real cost of unwinding, and is the signal the agent needs:
+            # skew your quotes, or pay to be flattened.
+            liq_prices = jnp.asarray(
+                [best_ask + half_spread * 10, best_bid - half_spread * 10],
+                dtype=jnp.int32)
+            liquidating = jnp.abs(agent_state.inventory) > self.cfg.auto_liquidate_threshold
+            types = jnp.where(liquidating, liq_types, types)
+            sides = jnp.where(liquidating, liq_sides, sides)
+            quants = jnp.where(liquidating, liq_quants, quants)
+            prices = jnp.where(liquidating, liq_prices, prices)
+
 
 
 
@@ -1588,8 +1622,11 @@ class MarketMakingAgent():
 
         # bobRL posts at the touch; report the actually posted prices (0 when that
         # side posted nothing) so the quote-displacement metric can be computed.
-        posted_bid_price = jnp.where(bid_quant > 0, best_bid, 0)
-        posted_ask_price = jnp.where(ask_quant > 0, best_ask, 0)
+        # On a liquidation step the agent sends IOC orders and posts NO quote,
+        # so it must not report one: quote_presence is the study's validity gate
+        # and counting a forced unwind as a two-sided quote would inflate it.
+        posted_bid_price = jnp.where(liquidating | (bid_quant <= 0), 0, best_bid)
+        posted_ask_price = jnp.where(liquidating | (ask_quant <= 0), 0, best_ask)
         return action_msgs,{"bid_quant":bid_quant,"ask_quant":ask_quant,"empty_book":empty_book,"bid_distance_from_best":0,"ask_distance_from_best":0,"posted_bid_price":posted_bid_price,"posted_ask_price":posted_ask_price}
 
     def _getActionMsgs_fixedPrice(self, action: jax.Array, world_state: WorldState, agent_state: MMEnvState, agent_params: MMEnvParams):

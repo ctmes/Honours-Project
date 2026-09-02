@@ -1,0 +1,69 @@
+# ============================================================================
+# PILOT (not a preregistered arm) - does a position limit stop the inventory
+# ratchet that made 12 of 20 v2 baseline seeds stop quoting?
+#
+# Identical to kaya_config1_baseline.yaml except ENV_CONFIG and PROJECT, and
+# the env config differs from config1's in ONE key: auto_liquidate_threshold,
+# 0 (disabled) -> 100. inv_penalty stays "none", so this is a clean test
+# against the v2 baseline rather than a change of two things at once.
+#
+# WHY NOT THE REWARD: the 2026-09-02 inv_penalty pilots (1167444 at F=1000,
+# 1167445 at F=250) made the ratchet 35x and 176x worse, with decay scaling as
+# 1/F while the inventory path barely moved. The MM's ladder posts two LIMIT
+# orders at best_bid/best_ask and nothing else, so it has no action that
+# reduces a position. Penalising a state the agent cannot escape only adds a
+# state-dependent constant that swamps credit assignment.
+#
+# Launch (6 seeds, 200 updates, ~1.7h each on 8 cores):
+#   sbatch --array=0-5 slurm_cpu_sweep.sh kaya_pilot_autoliq_t100 TOTAL_TIMESTEPS=1638400
+#
+# ANNEAL_TOTAL_UPDATES stays 1002 ON PURPOSE, so the LR at update k matches
+# what the v2 baseline saw at update k. Array 1137481's first 200 updates are
+# the control; no control arm needs running.
+#
+# SUCCESS = the WITHIN-EPISODE DRIFT section of diagnose_collapse.py reporting
+# a decay near zero instead of the v2 baseline's -31.89, with seeds holding
+# entropy. Read it with:
+#   python diagnose_collapse.py analyse traces_<jobid>.tsv
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 2736128     # PHASE 1 (Q1) budget: 334 updates; q2/q3 phases override
+"ANNEAL_TOTAL_UPDATES": 1002   # LR anneal spans the whole Q1->Q2->Q3 chain
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42                     # overridden per job: SEED=${SLURM_ARRAY_TASK_ID}
+
+# Adversarial-specific (detection/PCGrad inert in this arm: use_detection_head
+# is false in the env config, so the BCE branch is skipped entirely)
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+# Regime labels are loaded for logging/eval splits in every arm; the MM's
+# regime obs channel is only active in config 3 (regime_conditioning flag).
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_q1.json"   # phase 1; overridden per phase
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_pilot_autoliq_t100.json"
+
+"TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "pilot_autoliq_t100"
+"WANDB_MODE": "disabled"

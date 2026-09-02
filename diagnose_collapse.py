@@ -194,8 +194,40 @@ def analyse(tsv: str, eval_json: str, arm: str, qp_cut: float) -> None:
     cm = np.mean([finals[s] for s in collapsed if s in finals]) if collapsed else np.nan
     qm = np.mean([finals[s] for s in quoting if s in finals]) if quoting else np.nan
 
+    # --- 3. within-episode drift ------------------------------------------
+    # The (A)/(B) split above compares seeds to each other at the END of
+    # training and is blind to what happens WITHIN an episode. On the baseline
+    # arm that blindness was the whole story: reward falls monotonically from
+    # roughly -2 to -45 across each episode and snaps back at the reset, a
+    # sawtooth whose period is episode_time / NUM_STEPS. That is inventory
+    # accumulating with nothing in the reward pushing it back to flat, and no
+    # amount of exploration fixes it.
+    drift = _episode_drift(t, collapsed + quoting, mm_phase)
+    print("\nWITHIN-EPISODE DRIFT (all seeds, reward_mm averaged per update)")
+    if drift is None:
+        print("  no clean sawtooth found -- reward is not dominated by a")
+        print("  within-episode ratchet, so read the two sections above.")
+    else:
+        period, start_r, end_r = drift
+        print("  reset period      %.2f updates   (episode_time/NUM_STEPS)" % period)
+        print("  reward at episode start  %10.2f" % start_r)
+        print("  reward at episode end    %10.2f" % end_r)
+        print("  within-episode decay     %10.2f  (end - start)" % (end_r - start_r))
+
     print("\n" + "=" * 74)
-    if np.isfinite(cm) and np.isfinite(qm) and cm > qm:
+    ratchet = drift is not None and (drift[2] - drift[1]) < -1.0
+    if ratchet:
+        print("VERDICT: (C) WITHIN-EPISODE RATCHET -- the dominant effect.")
+        print("Reward decays %.1f per episode and resets with it, so the policy is"
+              % (drift[1] - drift[2]))
+        print("bleeding on a position it accumulates and never flattens. Check")
+        print("inv_penalty in the env config before touching anything else: if it")
+        print("is \"none\", nothing in the reward pushes inventory toward zero and")
+        print("the only way to stop the bleed growing is to stop quoting -- which")
+        print("is an absorbing state, because a policy that never quotes never")
+        print("gets a fill to learn from. Seeds differ only in whether they fell")
+        print("in. That is a reward-design fault, not a hyperparameter one.")
+    elif np.isfinite(cm) and np.isfinite(qm) and cm > qm:
         print("VERDICT: (B) NO-TRADE OPTIMUM.")
         print("Seeds that stopped quoting earn MORE (%.4f) than seeds that kept" % cm)
         print("quoting (%.4f), so the objective is paying for the collapse." % qm)
@@ -204,14 +236,52 @@ def analyse(tsv: str, eval_json: str, arm: str, qp_cut: float) -> None:
         print("term -- before spending the cluster on another 120 seeds.")
     else:
         print("VERDICT: leans (A) EXPLORATION.")
-        print("Collapsed seeds do not out-earn quoting ones (%.4f vs %.4f), so the"
+        print("Collapsed seeds do not out-earn quoting ones (%.4f vs %.4f) and there"
               % (cm, qm))
-        print("collapse is not what the objective rewards. Read the entropy table:")
+        print("is no within-episode ratchet, so the collapse is neither what the")
+        print("objective rewards nor an inventory bleed. Read the entropy table:")
         print("a crash confined to the collapsed group points at ENT_COEF and the")
-        print("action ladder rather than at the reward.")
-    print("Entropy retention is the cross-check either way -- a drop confined to")
-    print("the collapsed group indicates (A) even when the reward gap is small.")
+        print("action ladder.")
     print("=" * 74)
+
+
+def _episode_drift(t, seeds, mm_phase):
+    """Find the episode reset period and the reward decay across an episode.
+
+    Episodes are longer than a rollout (episode_time 6400 vs NUM_STEPS 512),
+    so one episode spans several updates and its boundary shows up as reward
+    snapping back to near zero. Returns (period, reward_at_start, reward_at_end)
+    or None when no regular sawtooth is present.
+    """
+    by_update = {}
+    for s in seeds:
+        m = t["seed"] == s
+        for u, v in zip(t["update"][m], np.asarray(t["reward_mm"][m], dtype=float)):
+            if np.isfinite(v):
+                by_update.setdefault(int(u), []).append(v)
+    if len(by_update) < 60:
+        return None
+    us = np.array(sorted(by_update))
+    rs = np.array([np.mean(by_update[u]) for u in us])
+    # Skip the first few updates: the policy is still near initialisation and
+    # the ratchet has not had time to build.
+    keep = us >= 20
+    us, rs = us[keep], rs[keep]
+    if us.size < 40:
+        return None
+    med = np.median(rs)
+    peaks = [i for i in range(1, len(rs) - 1)
+             if rs[i] > rs[i - 1] and rs[i] > rs[i + 1] and rs[i] > med]
+    if len(peaks) < 4:
+        return None
+    gaps = np.diff(us[peaks])
+    period = float(np.mean(gaps))
+    if not np.isfinite(period) or period < 2 or np.std(gaps) > 0.35 * period:
+        return None  # not regular enough to call a sawtooth
+    # Reward at the reset (episode start) vs just before the next one.
+    starts = rs[peaks]
+    ends = np.array([rs[p - 1] for p in peaks])
+    return period, float(np.mean(starts)), float(np.mean(ends))
 
 
 def main():

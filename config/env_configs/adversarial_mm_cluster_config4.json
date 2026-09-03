@@ -45,7 +45,7 @@
       "simple_nothing_action": true,
       "tenth_action": "NA",
       "sell_buy_all_option": false,
-      "auto_liquidate_threshold": 0,
+      "auto_liquidate_threshold": 50,
       "auto_liquidate_alpha": 1.0,
       "based_on_mid_price_of_action": true,
       "action_space": "bobRL",
@@ -95,5 +95,5 @@
     1,
     1
   ],
-  "_comment": "Config-4 arm C: constrained adversary + DETECTION HEAD ONLY (regime_conditioning off). With arms B/D/E this completes the 2x2 factorial over {detection, regime} so their main effects are separable ' config-3 confounds them. Evaluate with eval_2024_test_config4.yaml."
+  "_comment": "Config-4 arm C: constrained adversary + DETECTION HEAD ONLY (regime_conditioning off). With arms B/D/E this completes the 2x2 factorial over {detection, regime} so their main effects are separable ' config-3 confounds them. Evaluate with eval_2024_test_config4.yaml. POSITION LIMIT ADDED 2026-09-02 (v3): auto_liquidate_threshold 0 -> 50. 0 disabled it, and the bobRL ladder posts only LIMIT orders at the touch, so the MM had no action that reduces a position: inventory ratcheted one way across every episode, reward decayed -2.5 -> -34 per episode, and 12 of 20 v2 baseline seeds stopped quoting. Pilot arrays 1168520/1168521 removed the ratchet entirely (no sawtooth, 0/6 seeds collapsed). 50 rather than 100 because the progression gate needs inventory_sd <= 2 x A-S's 8.17 = 16.34, and a limit T bounds sd at roughly 0.58 x T. Note auto_liquidate_threshold is only implemented on the bobRL and fixedQuant paths, so it is NOT set on the A-S config (action_space=AvSt): A-S skews by inventory in the policy and holds sd 8.17 / peak 26, far inside any limit, so it would never bind."
 }

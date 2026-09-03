@@ -62,5 +62,5 @@
 "TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
 
 "ENTITY": "your-wandb-entity"
-"PROJECT": "v2_config1_baseline"
+"PROJECT": "v3_config1_baseline"
 "WANDB_MODE": "disabled"

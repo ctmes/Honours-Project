@@ -63,7 +63,7 @@
   },
   "common_adversary": {
     "_comment": "Every arm evaluated under attack faces the config-3 arm's adversary, paired by seed index (internal validity for H1).",
-    "project": "v2_config3_full",
+    "project": "v3_config3_full",
     "run_names": "seed_<i>"
   },
   "periods_per_year": 10833681,
@@ -74,7 +74,9 @@
   "superseded_runs": {
     "v1_config1_baseline / v1_config2_adversarial / v1_config3_full": "SUPERSEDED 2026-08-27. Trained and evaluated in full (60 seeds, eval_1136928) but INVALID as a test of H1-H4 because of a bobRL action-space misconfiguration: n_actions=6 was sampled against the bob_v0=1 ladder, which has only 3 entries. JAX clamps an out-of-range gather index to the last element, so actions 3/4/5 all collapsed onto the final one-sided entry (bid=0, ask=2). Four of six actions were sell-only and exactly one quoted two-sided, giving a uniform-policy prior of 1/6 = 0.167 on market making. Observed quote_presence was 0.169 (full), 0.299 (baseline), 0.319 (adversarial) - the full arm was indistinguishable from an untrained policy - with peak_inventory 110-148 against the A-S benchmark's 27 and inventory_sd 31-42 against 8.4. The progression gate FAILED on all three criteria. All contrasts were null after Holm correction, which is uninformative because the three arms shared the same broken action space. The A-S arm was unaffected (action_space=AvSt) and is the reason the fault was visible at all.",
     "_retained_because": "The v1 checkpoints and eval_1136928 are KEPT, not deleted. They are the evidence that a pre-registered, benchmark-anchored progression gate and the quote_presence validity metric caught a silent implementation fault that every significance test absorbed without complaint. That is reported as a methodological finding.",
-    "_v2_changes": "v2_* arms fix the action space to bob_v0=2 with n_actions=5 (a 5-action ladder whose first three entries are two-sided, with bid/ask skew for inventory control; uniform-policy P(two-sided) = 0.6). A constructor assert in mm_env.py now rejects any n_actions that does not match the bob_v0 ladder length. Evaluation episodes per seed raised from 16 to 64 because the deterministic A-S arm showed sharpe_off = 0.119 +/- 41.81 across seeds, i.e. the between-arm comparisons were noise-dominated. softmin_sharpe was made scale-invariant (a fixed softmin temperature on PnL-scale returns produced |values| ~ 3e10). No hypothesis, metric, alpha, margin or seed-count decision was changed."
+    "_v2_changes": "v2_* arms fix the action space to bob_v0=2 with n_actions=5 (a 5-action ladder whose first three entries are two-sided, with bid/ask skew for inventory control; uniform-policy P(two-sided) = 0.6). A constructor assert in mm_env.py now rejects any n_actions that does not match the bob_v0 ladder length. Evaluation episodes per seed raised from 16 to 64 because the deterministic A-S arm showed sharpe_off = 0.119 +/- 41.81 across seeds, i.e. the between-arm comparisons were noise-dominated. softmin_sharpe was made scale-invariant (a fixed softmin temperature on PnL-scale returns produced |values| ~ 3e10). No hypothesis, metric, alpha, margin or seed-count decision was changed.",
+    "v3_v2_arms": "SUPERSEDED 2026-09-02. The v2_* arms (6 x 20 seeds, eval_1151304 / eval_1151370, byte-identical reproductions of each other) trained and evaluated in full but FAILED both pre-registered gates. Progression gate FAIL on all three criteria (sharpe -8.80 vs A-S 4.60; sortino 0.24 vs 17.47; inventory_sd 79.32 vs the 16.34 ceiling). Validity gate FAIL: quote_presence bimodal at exactly 0.00 or above 0.3, with 10-14 of 20 seeds per arm never posting a two-sided quote, and every such seed producing bit-identical attack-on and attack-off metrics. Cause diagnosed from the training logs: every env config set auto_liquidate_threshold = 0, which disables the only mechanism that actively reduces inventory, while the bobRL ladder emits only LIMIT orders at the touch. The MM therefore had NO action that reduces a position; inventory ratcheted one way and reward decayed from about -2.5 to -34 across every 6400s episode (sawtooth period 12.50 updates = episode_time/NUM_STEPS = 6400/512). Not quoting was the only way to stop the bleed growing, and it is absorbing, because a policy that never quotes never gets a fill to learn from.",
+    "_v3_changes": "v3_* arms set auto_liquidate_threshold = 50 on all six bobRL env configs, giving the MM a position limit beyond which inventory is flattened at market via IOC. The key existed but was implemented only in _getActionMsgs_fixedQuant, so on the bobRL path every arm actually runs it was read from config and silently never used; it is now mirrored into _getActionMsgs_BobRL and pinned by tests/test_position_limit.py. Threshold 50 rather than 100 because the progression gate requires inventory_sd <= 2 x A-S's 8.17 = 16.34 and a limit T bounds sd at roughly 0.58 x T. Validated by pilot arrays 1168520 (T=50) and 1168521 (T=100), 6 seeds x 200 updates: no within-episode sawtooth detected, rewards O(-0.1) against v2's O(-45), and 0 of 6 seeds collapsed in either (terminal entropy 0.74-1.19 and 1.08-1.51, unimodal, against v2's bimodal 0.00-0.42 / 1.07-1.57). Not set on the A-S config: AvSt does not implement the key, and A-S holds inventory_sd 8.17 / peak 26, far inside any limit, so it would never bind."
   },
   "adversary_cost_model": {
     "_comment": "DECIDED 2026-08-27. Enforcement against spoofing is disgorgement of illicit profit, so the regulatory term is a PROFIT TAX rather than a per-share fee: expected cost = p_detect * kappa * max(gross gain, 0), where gross gain is what the adversary extracts from the market maker (-r_mm, floored at zero, entering with a one-step lag). Replaces the earlier per-unit-volume penalty, which is retained in code as reg_cost_mode='volume' for comparison only.",
@@ -84,16 +86,26 @@
     "p_detect": 0.1,
     "p_detect_status": "PLACEHOLDER - no published estimate anchors the probability that a given episode's manipulation is detected and pursued. Swept as a sensitivity axis and reported as an assumption, not a calibrated quantity. Enters only as the product with kappa, so the kappa sweep partly absorbs uncertainty in it.",
     "accidental_fill_cost": "c_fill = 0.001 on expected filled volume x (half-spread + inverse-depth impact), charged every active step. EXPECTED FILLED VOLUME IS PER-STEP: p_fill(v_t) * v_t, where v_t is the volume posted on that step. A spoof order is posted and cancelled within the step, so its fill risk is a flow. Corrected 2026-08-27 - the implementation had been reading the episode's CUMULATIVE injected volume, which made the cost quadratic and unbounded in it (measured avg_reward_ADV ~ -7.7e6 against an MM reward of order 1). Cumulative volume is still tracked for budget and OTR accounting. This restores the model as specified; it is not a change to it.",
-    "unconstrained_comparator": "Arm F (v2_config6_unconstrained) sets kappa = p_detect = c_fill = 0, giving the unconstrained spoofer the proposal promises as a baseline. NOTE: every arm of the superseded v1 run had these at zero, so no earlier result exercised the economic constraint at all."
+    "unconstrained_comparator": "Arm F (v3_config6_unconstrained) sets kappa = p_detect = c_fill = 0, giving the unconstrained spoofer the proposal promises as a baseline. NOTE: every arm of the superseded v1 run had these at zero, so no earlier result exercised the economic constraint at all."
   },
   "design": {
     "_comment": "Six arms x 20 seeds. B/C/D/E form a 2x2 factorial over {detection head, regime conditioning} so each factor is estimated at both levels of the other - the v1 design confounded them in a single arm. A is the no-adversary reference for H1; F is the unconstrained-adversary comparator for contribution 1.",
-    "A_baseline": "v2_config1_baseline: no adversary",
-    "B_adversarial": "v2_config2_adversarial: constrained adversary, no MM defences",
-    "C_detection": "v2_config4_detection: + detection head only",
-    "D_regime": "v2_config5_regime: + regime conditioning only",
-    "E_full": "v2_config3_full: + both",
-    "F_unconstrained": "v2_config6_unconstrained: unconstrained adversary, no MM defences",
+    "A_baseline": "v3_config1_baseline: no adversary",
+    "B_adversarial": "v3_config2_adversarial: constrained adversary, no MM defences",
+    "C_detection": "v3_config4_detection: + detection head only",
+    "D_regime": "v3_config5_regime: + regime conditioning only",
+    "E_full": "v3_config3_full: + both",
+    "F_unconstrained": "v3_config6_unconstrained: unconstrained adversary, no MM defences",
     "eval_episodes_per_seed": 64
-  }
+  },
+  "amendments": [
+    {
+      "date": "2026-09-02",
+      "change": "auto_liquidate_threshold 0 -> 50 on the six bobRL env configs; arm projects renamed v2_* -> v3_*.",
+      "motivation": "Both pre-registered gates failed on v2 because of an environment implementation fault, not because of anything the hypotheses predict. Diagnosed from training logs and two 6-seed pilots BEFORE any v3 checkpoint existed.",
+      "analysis_decisions_changed": "NONE. Hypotheses, primary_metrics, alpha, multiplicity, equivalence_margins, progression_gate criteria, seeds, checkpoint_step, periods_per_year and the common-adversary design are all unchanged. This amendment fixes the ENVIRONMENT, not the statistics, which is why signed_off is not reset.",
+      "caveat": "The pilots ran 200 updates, a fifth of production, and classified seeds by terminal policy entropy rather than measured quote_presence. They establish that the ratchet is absent at that horizon; they do not establish that the v3 arms clear the progression gate. That remains a genuine pre-registered risk of failure.",
+      "candidate_sign_off": "PENDING COLIN REVIEW - drafted 2026-09-02, not yet approved."
+    }
+  ]
 }

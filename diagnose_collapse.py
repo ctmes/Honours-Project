@@ -151,8 +151,18 @@ def _split_by_terminal_entropy(t, mm_phase, seeds):
     vals = np.array([term[s] for s in order])
     gaps = np.diff(vals)
     cut = int(np.argmax(gaps))
-    # A split is only meaningful if the gap actually dominates the spread.
-    if gaps[cut] < 0.25 * (vals[-1] - vals[0] + 1e-9):
+    # The gap must be large on the ABSOLUTE entropy scale, not merely large
+    # relative to the observed spread. The earlier relative test (gap > 0.25 x
+    # spread) split healthy runs: the 2026-09-02 position-limit pilots came back
+    # unimodal at 0.74-1.19 and 1.08-1.51, whose spread is so small that a 0.21
+    # gap "dominates" it, and the tool then compared two arbitrary halves and
+    # reported a no-trade optimum on a run where nothing had collapsed.
+    #
+    # 0.3 x ln5 separates the real thing comfortably at any run length: the v2
+    # baseline's collapsed and quoting groups sat at 0.42 vs 1.12 (gap 0.70) at
+    # update 1000 and 0.39 vs 1.23 at update 200, while both healthy pilots peak
+    # at 0.21 and are correctly left unsplit.
+    if gaps[cut] < 0.3 * _LN5:
         return [], sorted(term), term
     return sorted(order[:cut + 1]), sorted(order[cut + 1:]), term
 
@@ -270,7 +280,21 @@ def analyse(tsv: str, eval_json, arm: str, qp_cut: float) -> None:
 
     print("\n" + "=" * 74)
     ratchet = drift is not None and (drift[2] - drift[1]) < -1.0
-    if ratchet:
+    if not ratchet and not collapsed:
+        # No ratchet AND no bimodal split is the shape of a run that WORKED, and
+        # it must be said plainly rather than falling through to a failure
+        # verdict computed over two arbitrary halves of a healthy population.
+        print("VERDICT: HEALTHY -- no ratchet, no collapse.")
+        print("Reward shows no within-episode sawtooth and every seed retained")
+        print("entropy, so no seed converged to a degenerate do-nothing policy.")
+        print("This is provisional in two specific ways. Terminal entropy is a")
+        print("PROXY: it says a policy stayed stochastic, not that it quoted, so")
+        print("confirm with measured quote_presence by evaluating the")
+        print("checkpoints. And a short pilot only proves the failure is absent")
+        print("at this horizon -- a slower ratchet would still be invisible.")
+        print("Next: run the full length, evaluate, and check the progression")
+        print("gate against A-S before trusting any of it.")
+    elif ratchet:
         print("VERDICT: (C) WITHIN-EPISODE RATCHET -- the dominant effect.")
         print("Reward decays %.1f per episode and resets with it, so the policy is"
               % (drift[1] - drift[2]))

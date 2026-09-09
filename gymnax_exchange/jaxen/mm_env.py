@@ -190,6 +190,32 @@ class MarketMakingAgent():
                     f"n_actions={_bob_ladder_len[self.cfg.bob_v0]} (or change bob_v0).")
         elif self.cfg.action_space == "spread_skew":
             self.action_fn = self._getActionMsgs_spread_skew
+            # Same failure mode as the bobRL check above, and nothing else guards
+            # it: AdversarialMMConfig.__post_init__ sets n_actions for
+            # fixed_quants / fixed_prices / fixed_quants_complex / simplest_case /
+            # fixed_quants_1msg / twap, but NOT for spread_skew, so n_actions is
+            # whatever the config happens to carry. The v3 configs carry 5.
+            #
+            # spread_skew decodes action as spread_type = action // 3 and
+            # skew_type = action % 3, i.e. a 2x3 grid needing exactly 6. At
+            # n_actions=5 the policy can never emit action 5, so "wide spread,
+            # ask skew" is unreachable and the arm silently trains on five sixths
+            # of its action space. Too few is as wrong as too many; require exact.
+            if self.cfg.n_actions != 6:
+                raise ValueError(
+                    f"spread_skew action-space mismatch: n_actions="
+                    f"{self.cfg.n_actions}, but the space is a 2x3 grid "
+                    f"(spread_type = action // 3, skew_type = action % 3) and "
+                    f"needs exactly 6. Set n_actions=6.")
+            # 2 messages per step (one bid, one ask). order_ids is built with
+            # jnp.full((num_action_messages_by_agent,), ...) and then stacked
+            # against 2-element type/side/quant/price arrays, so any other value
+            # is a shape error inside jnp.stack rather than anything readable.
+            if self.cfg.num_action_messages_by_agent != 2:
+                raise ValueError(
+                    f"spread_skew sends exactly 2 messages per step, but "
+                    f"num_action_messages_by_agent="
+                    f"{self.cfg.num_action_messages_by_agent}. Set it to 2.")
         elif self.cfg.action_space == "directional_trading":
             self.action_fn = self._getActionMsgs_directional_trading
         elif self.cfg.action_space == "simple":
@@ -1764,9 +1790,27 @@ class MarketMakingAgent():
         4: wide spread, neutral
         5: wide spread, ask skew
         '''
-        # Use the most recent best_ask and best_bid values
-        best_ask = jnp.int32((world_state.best_asks[-1][0] // self.world_config.tick_size) * self.world_config.tick_size)
-        best_bid = jnp.int32((world_state.best_bids[-1][0] // self.world_config.tick_size) * self.world_config.tick_size)
+        # Mask the agent's OWN resting orders before reading the touch. bobRL does
+        # this and says why: "These values may be my own orders... I clearly don't
+        # want to base myself off them." It matters MORE here. bobRL only quotes AT
+        # the touch, but this action space DERIVES prices from mid and spread, so
+        # quoting off your own resting orders is a feedback loop: the MM posts a bid,
+        # that bid becomes best_bid, and next step it recomputes mid from its own
+        # quote and walks the price away from the market.
+        ask_mask = (world_state.ask_raw_orders[:, job.cst.OrderSideFeat.TID.value]
+                    != agent_params.trader_id)
+        bid_mask = (world_state.bid_raw_orders[:, job.cst.OrderSideFeat.TID.value]
+                    != agent_params.trader_id)
+        masked_asks = jnp.where(ask_mask[:, jnp.newaxis], world_state.ask_raw_orders, -1)
+        masked_bids = jnp.where(bid_mask[:, jnp.newaxis], world_state.bid_raw_orders, -1)
+        raw_ask, raw_bid = job.get_best_bid_and_ask(self.world_config, masked_asks, masked_bids)
+        # -1 means that side is empty. Fall back to the propagated best so the
+        # arithmetic stays finite; quantities are zeroed on an empty book anyway.
+        empty_book = jnp.where((raw_ask == -1) | (raw_bid == -1), True, False)
+        raw_ask = jnp.where(empty_book, world_state.best_asks[-1, 0], raw_ask)
+        raw_bid = jnp.where(empty_book, world_state.best_bids[-1, 0], raw_bid)
+        best_ask = jnp.int32((raw_ask // self.world_config.tick_size) * self.world_config.tick_size)
+        best_bid = jnp.int32((raw_bid // self.world_config.tick_size) * self.world_config.tick_size)
         mid_price = (best_ask + best_bid) / 2
 
 
@@ -1781,7 +1825,9 @@ class MarketMakingAgent():
         # Map action to spread and skew parameters
         # action = spread_type * 3 + skew_type
         spread_type = action // 3  # 0 = tight, 1 = wide
-        skew_type = action % 3     # 0 = neutral, 1 = ask skew, 2 = bid skew
+        # 0 = bid skew, 1 = neutral, 2 = ask skew -- matches the docstring and the
+        # jnp.where ladder below. The previous comment here said the opposite.
+        skew_type = action % 3
         
         # Define spread multipliers
         # Tight spread = 1.0 * current_spread
@@ -1801,6 +1847,12 @@ class MarketMakingAgent():
             skewed_mid = mid_price + skew_ticks * new_spread
         elif self.cfg.multiplier_type == "tick":
             skewed_mid = mid_price + skew_ticks * self.world_config.tick_size
+        else:
+            # Without this an unrecognised value leaves skewed_mid undefined and the
+            # failure surfaces as a NameError deep inside tracing.
+            raise ValueError(
+                f"multiplier_type must be 'tick' or 'spread', got "
+                f"{self.cfg.multiplier_type!r}")
 
         #jax.debug.print("mid price: {}", mid_price)
         #jax.debug.print("skew ticks: {}", skew_ticks)
@@ -1840,23 +1892,51 @@ class MarketMakingAgent():
         #jax.debug.print("ask price: agent{}", ask_price)
 
 
-        # Set fixed quantities
-        bid_quant = self.cfg.fixed_quant_value
-        ask_quant = self.cfg.fixed_quant_value
+        # Fixed quantities, zeroed when there is no book to quote against. bobRL
+        # does the same; without it the MM posts into an empty or one-sided book at
+        # prices derived from a stale touch.
+        bid_quant = jnp.where(empty_book, 0, self.cfg.fixed_quant_value)
+        ask_quant = jnp.where(empty_book, 0, self.cfg.fixed_quant_value)
         
         # Construct order messages
-        types = jnp.array([1, 1], dtype=jnp.int32)  # 1 = limit order
+        types = jnp.array([1, 1], dtype=jnp.int32)   # 1 = limit order
         sides = jnp.array([1, -1], dtype=jnp.int32)  # 1 = bid, -1 = ask
-        quants = jnp.array([bid_quant, ask_quant], dtype=jnp.int32)
-
-
-        prices = jnp.array([bid_price, ask_price], dtype=jnp.int32)
-        #print("prices:{}",prices)
-
-        prices = jnp.array([bid_price, ask_price], dtype=jnp.int32).reshape(-1)
-        #print("prices:{}",prices)
-
+        quants = jnp.asarray([bid_quant, ask_quant], dtype=jnp.int32).reshape(-1)
+        prices = jnp.asarray([bid_price, ask_price], dtype=jnp.int32).reshape(-1)
         trader_ids = jnp.full(2, agent_params.trader_id, dtype=jnp.int32)
+
+        # --- position limit ---------------------------------------------------
+        # Mirrored from _getActionMsgs_BobRL. auto_liquidate_threshold was
+        # implemented only in _getActionMsgs_fixedQuant, so on every other dispatch
+        # path it was read from config and silently never used - which is how the v2
+        # sweep ran with no position limit at all, inventory ratcheted one way across
+        # each episode, and 12 of 20 baseline seeds stopped quoting. Ported here
+        # rather than discovered again after a sweep.
+        liquidating = jnp.zeros((), dtype=bool)
+        if self.cfg.auto_liquidate_threshold != 0:
+            # inventory and action both arrive shape (1,) under the live vmap. Ravel
+            # to a scalar and substitute elementwise into the components: building a
+            # parallel [buy, sell] array from a (1,) input broadcasts to (2,2) and
+            # the reshape turns two messages into four, which only surfaces later in
+            # jnp.stack. That cost two cluster launches during v3.
+            inv = jnp.ravel(jnp.asarray(agent_state.inventory))[0]
+            liq_half_spread = (best_ask - best_bid) // 2
+            liq_buy = self.cfg.auto_liquidate_alpha * jnp.maximum(-inv, 0)
+            liq_sell = self.cfg.auto_liquidate_alpha * jnp.maximum(inv, 0)
+            liquidating = jnp.abs(inv) > self.cfg.auto_liquidate_threshold
+            types = jnp.where(liquidating, jnp.array([4, 4], dtype=jnp.int32), types)
+            # -1 = execute against the ask (buy, covers a short)
+            #  1 = execute against the bid (sell, reduces a long)
+            sides = jnp.where(liquidating, jnp.array([-1, 1], dtype=jnp.int32), sides)
+            quants = jnp.asarray([jnp.where(liquidating, liq_buy, bid_quant),
+                                  jnp.where(liquidating, liq_sell, ask_quant)],
+                                 dtype=jnp.int32).reshape(-1)
+            # Priced through the book so the IOC clears; slot 0 is the buy leg and
+            # slot 1 the sell leg, matching the swapped sides above.
+            prices = jnp.asarray(
+                [jnp.where(liquidating, best_ask + liq_half_spread * 10, bid_price),
+                 jnp.where(liquidating, best_bid - liq_half_spread * 10, ask_price)],
+                dtype=jnp.int32).reshape(-1)
         
         # Placeholder for order ids
         order_ids = jnp.full((self.cfg.num_action_messages_by_agent,), self.world_config.placeholder_order_id, dtype=jnp.int32)
@@ -1889,7 +1969,23 @@ class MarketMakingAgent():
         #jax.debug.print("Final Bid Price: {}, Final Ask Price: {}", bid_price, ask_price)
         #jax.debug.print("Final Messages:\n{}", action_msgs)
         
-        return action_msgs,{"bid_quant":bid_quant,"ask_quant":ask_quant,"empty_book":False,"bid_distance_from_best":0,"ask_distance_from_best":0,"posted_bid_price":0,"posted_ask_price":0}
+        # quote_presence -- the study's VALIDITY GATE -- is the fraction of steps
+        # with posted_bid_price > 0 AND posted_ask_price > 0. These were hardcoded
+        # to 0 here, so every arm would have reported a total quoting collapse no
+        # matter what the policy did, indistinguishable from the real v2 failure.
+        # A liquidation step sends IOC orders and posts no quote; so does an empty
+        # book, where the quantities are zeroed above. Both must report zero.
+        no_quote = liquidating | empty_book
+        posted_bid_price = jnp.where(no_quote | (bid_quant <= 0), 0, bid_price).astype(jnp.int32)
+        posted_ask_price = jnp.where(no_quote | (ask_quant <= 0), 0, ask_price).astype(jnp.int32)
+
+        return action_msgs, {
+            "bid_quant": bid_quant, "ask_quant": ask_quant,
+            "empty_book": empty_book,
+            "bid_distance_from_best": 0, "ask_distance_from_best": 0,
+            "posted_bid_price": posted_bid_price,
+            "posted_ask_price": posted_ask_price,
+        }
 
 
 

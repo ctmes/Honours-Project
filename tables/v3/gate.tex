@@ -1,0 +1,15 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Phase-1 progression gate: vanilla IPPO vs the A-S benchmark.}
+  \label{tab:gate}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    Criterion & IPPO & A-S & Requirement & Threshold & Result \\
+    \midrule
+    sharpe & -119 & 4.60 & within 0.500 of A-S & $\geq$ 4.10 & \textbf{FAIL} \\
+    sortino & -139 & 17.5 & within 0.500 of A-S & $\geq$ 17.0 & \textbf{FAIL} \\
+    inventory\_sd & 2.17 & 8.17 & within 2.0$\times$ A-S & $\leq$ 16.3 & \textbf{FAIL} \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize Means over seeds on clean (attack-off) data, which is the quantity the criteria are defined on. Overall gate: FAILED.\end{minipage}
+\end{table}

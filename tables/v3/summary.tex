@@ -1,0 +1,68 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Per-arm seed distributions.}
+  \label{tab:summary}
+  \begin{tabular}{lrrrrrrr}
+    \toprule
+    Arm & Metric & n & Median & Q1 & Q3 & Mean & SD \\
+    \midrule
+    A  baseline & Quote presence (frac. steps two-sided) (attack on) & 20 & 0.495 & 0.285 & 0.529 & 0.409 & 0.185 \\
+    A  baseline & Sortino ratio (attack on) & 20 & -140 & -164 & -111 & -138 & 42.4 \\
+    A  baseline & Sharpe ratio (attack on) & 20 & -121 & -138 & -94.9 & -119 & 33.8 \\
+    A  baseline & CVaR (worst 10\%) (attack on) & 20 & -6.59 & -7.92 & -6.28 & -7.01 & 1.08 \\
+    A  baseline & Detection AUROC & 20 & 0.501 & 0.495 & 0.507 & 0.500 & 0.00870 \\
+    A  baseline & Inventory SD (attack on) & 20 & 2.18 & 2.06 & 2.24 & 2.17 & 0.122 \\
+    A  baseline & Peak |inventory| (attack on) & 20 & 4.64 & 4.31 & 5.05 & 4.76 & 0.617 \\
+    A  baseline & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 67.1 & 51.7 & 91.2 & 76.6 & 51.1 \\
+    B  adversarial & Quote presence (frac. steps two-sided) (attack on) & 20 & 0.352 & 0.0726 & 0.593 & 0.327 & 0.263 \\
+    B  adversarial & Sortino ratio (attack on) & 20 & -119 & -161 & -103 & -130 & 35.8 \\
+    B  adversarial & Sharpe ratio (attack on) & 20 & -101 & -135 & -87.9 & -112 & 28.5 \\
+    B  adversarial & CVaR (worst 10\%) (attack on) & 20 & -6.88 & -8.49 & -6.34 & -7.52 & 1.66 \\
+    B  adversarial & Detection AUROC & 20 & 0.498 & 0.491 & 0.507 & 0.498 & 0.0107 \\
+    B  adversarial & Inventory SD (attack on) & 20 & 2.09 & 1.99 & 2.20 & 2.11 & 0.135 \\
+    B  adversarial & Peak |inventory| (attack on) & 20 & 4.69 & 4.44 & 5.07 & 4.75 & 0.651 \\
+    B  adversarial & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 60.6 & 23.7 & 104 & 69.9 & 55.5 \\
+    C  +detection & Quote presence (frac. steps two-sided) (attack on) & 20 & 0.415 & 0.168 & 0.681 & 0.426 & 0.304 \\
+    C  +detection & Sortino ratio (attack on) & 20 & -132 & -143 & -108 & -128 & 33.6 \\
+    C  +detection & Sharpe ratio (attack on) & 20 & -111 & -121 & -95.9 & -109 & 25.0 \\
+    C  +detection & CVaR (worst 10\%) (attack on) & 20 & -7.27 & -8.46 & -6.69 & -7.91 & 1.91 \\
+    C  +detection & Detection AUROC & 20 & 0.499 & 0.487 & 0.507 & 0.498 & 0.0122 \\
+    C  +detection & Inventory SD (attack on) & 20 & 2.29 & 2.11 & 2.61 & 2.44 & 0.441 \\
+    C  +detection & Peak |inventory| (attack on) & 20 & 5.02 & 4.59 & 6.48 & 5.70 & 1.66 \\
+    C  +detection & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 80.0 & 26.8 & 93.9 & 73.3 & 53.5 \\
+    D  +regime & Quote presence (frac. steps two-sided) (attack on) & 20 & 0.541 & 0.368 & 0.693 & 0.513 & 0.213 \\
+    D  +regime & Sortino ratio (attack on) & 20 & -138 & -171 & -93.0 & -130 & 47.2 \\
+    D  +regime & Sharpe ratio (attack on) & 20 & -120 & -143 & -87.0 & -113 & 36.3 \\
+    D  +regime & CVaR (worst 10\%) (attack on) & 20 & -7.54 & -8.05 & -6.58 & -7.74 & 1.78 \\
+    D  +regime & Detection AUROC & 20 & 0.499 & 0.494 & 0.506 & 0.500 & 0.00772 \\
+    D  +regime & Inventory SD (attack on) & 20 & 2.28 & 2.14 & 2.37 & 2.28 & 0.177 \\
+    D  +regime & Peak |inventory| (attack on) & 20 & 5.34 & 4.95 & 5.79 & 5.46 & 1.08 \\
+    D  +regime & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 95.8 & 39.0 & 107 & 88.3 & 55.6 \\
+    E  full & Quote presence (frac. steps two-sided) (attack on) & 20 & 0.281 & 0.0633 & 0.663 & 0.375 & 0.337 \\
+    E  full & Sortino ratio (attack on) & 20 & -119 & -143 & -78.8 & -110 & 49.5 \\
+    E  full & Sharpe ratio (attack on) & 20 & -102 & -119 & -68.0 & -94.9 & 39.1 \\
+    E  full & CVaR (worst 10\%) (attack on) & 20 & -8.09 & -10.3 & -6.86 & -10.0 & 5.28 \\
+    E  full & Detection AUROC & 20 & 0.498 & 0.488 & 0.507 & 0.497 & 0.0122 \\
+    E  full & Inventory SD (attack on) & 20 & 2.18 & 2.04 & 2.50 & 2.53 & 0.899 \\
+    E  full & Peak |inventory| (attack on) & 20 & 5.44 & 4.74 & 7.84 & 7.11 & 4.16 \\
+    E  full & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 70.7 & 56.3 & 119 & 80.0 & 48.8 \\
+    F  unconstrained & Quote presence (frac. steps two-sided) (attack on) & 20 & 0.148 & 0.0356 & 0.373 & 0.249 & 0.269 \\
+    F  unconstrained & Sortino ratio (attack on) & 20 & -129 & -169 & -90.2 & -127 & 57.9 \\
+    F  unconstrained & Sharpe ratio (attack on) & 20 & -115 & -139 & -75.1 & -108 & 44.6 \\
+    F  unconstrained & CVaR (worst 10\%) (attack on) & 20 & -7.16 & -10.5 & -5.73 & -8.13 & 3.05 \\
+    F  unconstrained & Detection AUROC & 20 & 0.500 & 0.493 & 0.507 & 0.500 & 0.00997 \\
+    F  unconstrained & Inventory SD (attack on) & 20 & 2.03 & 2.00 & 2.11 & 2.11 & 0.182 \\
+    F  unconstrained & Peak |inventory| (attack on) & 20 & 4.65 & 3.59 & 6.23 & 5.01 & 1.69 \\
+    F  unconstrained & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 58.2 & 31.2 & 99.9 & 68.7 & 56.6 \\
+    A-S benchmark & Quote presence (frac. steps two-sided) (attack on) & 20 & 1.00 & 1.00 & 1.00 & 1.00 & 0 \\
+    A-S benchmark & Sortino ratio (attack on) & 20 & 16.2 & 4.75 & 36.8 & 17.5 & 25.8 \\
+    A-S benchmark & Sharpe ratio (attack on) & 20 & 3.03 & -3.63 & 17.4 & 4.60 & 18.4 \\
+    A-S benchmark & CVaR (worst 10\%) (attack on) & 20 & -32.8 & -34.0 & -31.6 & -32.8 & 3.12 \\
+    A-S benchmark & Detection AUROC & 20 & 0.505 & 0.499 & 0.510 & 0.504 & 0.00648 \\
+    A-S benchmark & Inventory SD (attack on) & 20 & 8.23 & 7.91 & 8.66 & 8.17 & 0.565 \\
+    A-S benchmark & Peak |inventory| (attack on) & 20 & 26.4 & 25.5 & 27.5 & 26.3 & 1.77 \\
+    A-S benchmark & Regime gap  |Sortino\_hi - Sortino\_lo| (attack on) & 20 & 56.2 & 30.5 & 75.0 & 57.1 & 34.5 \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize Median and inter-quartile range lead because these seed distributions are bimodal; the mean and SD follow because the pre-registered gate and equivalence margins are defined on means. n is per row: metrics undefined on non-quoting seeds have a smaller n than their neighbours.\end{minipage}
+\end{table}

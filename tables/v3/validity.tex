@@ -1,0 +1,19 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Validity gate: two-sided quoting by arm.}
+  \label{tab:validity}
+  \begin{tabular}{lrrrrrrr}
+    \toprule
+    Arm & n & No 2-sided & Frac. & Median qp & Mean qp (rest) & Sweep & Gate \\
+    \midrule
+    A  baseline & 20 & 0 & 0 & 0.495 & 0.409 & 0/0/0/2/2 & pass \\
+    B  adversarial & 20 & 0 & 0 & 0.352 & 0.327 & 0/0/0/5/7 & pass \\
+    C  +detection & 20 & 4 & 0.20 & 0.415 & 0.532 & 3/3/4/4/4 & pass \\
+    D  +regime & 20 & 0 & 0 & 0.541 & 0.513 & 0/0/0/1/1 & pass \\
+    E  full & 20 & 2 & 0.10 & 0.281 & 0.417 & 1/1/2/4/8 & pass \\
+    F  unconstrained & 20 & 0 & 0 & 0.148 & 0.249 & 0/0/0/6/9 & pass \\
+    A-S benchmark & 20 & 0 & 0 & 1.00 & 1.00 & 0/0/0/0/0 & pass \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize Quote presence is the fraction of steps with a two-sided quote posted. An arm fails the pre-registered validity gate when more than 50 per cent of its seeds sit at quote presence of 0.01 or below; such an arm cannot support an H1 robustness claim, because the adversary perturbs only the market maker's observed depth. The sweep column gives the count at cuts 0, 0.001, 0.01, 0.05, 0.1. The verdict is unchanged across the whole sweep for every arm.\end{minipage}
+\end{table}

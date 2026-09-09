@@ -1,0 +1,44 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Pre-registered contrasts.}
+  \label{tab:contrasts}
+  \begin{tabular}{lrrrrrrrr}
+    \toprule
+    Contrast & Metric & n & Diff. & 95\% CI & $d$ & Test & $p$ raw & $p$ Holm \\
+    \midrule
+    B vs A   co-training effect (H1) & Sortino ratio (attack on) & 20 & 8.47 & [-8.46, 25.4] & 0.23 & paired\_t & 0.308 & 0.939 \\
+    B vs A   co-training effect (H1) & Sharpe ratio (attack on) & 20 & 7.17 & [-6.68, 21.0] & 0.24 & paired\_t & 0.292 & 0.939 \\
+    B vs A   co-training effect (H1) & CVaR (worst 10\%) (attack on) & 20 & -0.508 & [-1.37, 0.358] & -0.27 & paired\_t & 0.235 & 0.939 \\
+    B vs A   co-training effect (H1) & Detection AUROC & 20 & -0.00193 & [-0.00530, $4.18\times10^{-4}$] & -0.28 & wilcoxon & 0.312 & 0.939 \\
+    C vs B   detection | regime off & Sortino ratio (attack on) & 20 & 1.96 & [-13.7, 20.1] & 0.050 & wilcoxon & 0.812 & 1.000 \\
+    C vs B   detection | regime off & Sharpe ratio (attack on) & 20 & 2.37 & [-10.6, 17.2] & 0.073 & wilcoxon & 0.869 & 1.000 \\
+    C vs B   detection | regime off & CVaR (worst 10\%) (attack on) & 20 & -0.388 & [-1.46, 0.688] & -0.17 & paired\_t & 0.459 & 1.000 \\
+    C vs B   detection | regime off & Detection AUROC & 20 & $-5.66\times10^{-4}$ & [-0.00608, 0.00495] & -0.048 & paired\_t & 0.832 & 1.000 \\
+    E vs D   detection | regime on & Sortino ratio (attack on) & 20 & 20.3 & [-7.78, 48.3] & 0.34 & paired\_t & 0.147 & 0.429 \\
+    E vs D   detection | regime on & Sharpe ratio (attack on) & 20 & 18.0 & [-3.98, 39.9] & 0.38 & paired\_t & 0.103 & 0.412 \\
+    E vs D   detection | regime on & CVaR (worst 10\%) (attack on) & 20 & -2.29 & [-5.03, -0.0177] & -0.39 & wilcoxon & 0.143 & 0.429 \\
+    E vs D   detection | regime on & Detection AUROC & 20 & -0.00297 & [-0.00964, 0.00370] & -0.21 & paired\_t & 0.363 & 0.429 \\
+    D vs B   regime | detection off & Sortino ratio (attack on) & 20 & -0.870 & [-16.9, 15.1] & -0.025 & paired\_t & 0.910 & 1.000 \\
+    D vs B   regime | detection off & Sharpe ratio (attack on) & 20 & -1.13 & [-13.8, 11.6] & -0.042 & paired\_t & 0.855 & 1.000 \\
+    D vs B   regime | detection off & CVaR (worst 10\%) (attack on) & 20 & -0.223 & [-1.21, 0.637] & -0.10 & wilcoxon & 0.596 & 1.000 \\
+    D vs B   regime | detection off & Detection AUROC & 20 & 0.00199 & [-0.00251, 0.00650] & 0.21 & paired\_t & 0.366 & 1.000 \\
+    E vs C   regime | detection on & Sortino ratio (attack on) & 20 & 17.4 & [-1.51, 36.4] & 0.43 & paired\_t & 0.069 & 0.271 \\
+    E vs C   regime | detection on & Sharpe ratio (attack on) & 20 & 14.5 & [-1.16, 30.1] & 0.43 & paired\_t & 0.068 & 0.271 \\
+    E vs C   regime | detection on & CVaR (worst 10\%) (attack on) & 20 & -2.13 & [-4.53, -0.0240] & -0.41 & wilcoxon & 0.114 & 0.271 \\
+    E vs C   regime | detection on & Detection AUROC & 20 & $-4.09\times10^{-4}$ & [$-8.12\times10^{-4}$, $-5.02\times10^{-5}$] & -0.45 & wilcoxon & 0.083 & 0.271 \\
+    E vs B   joint defence & Sortino ratio (attack on) & 20 & 19.4 & [-8.01, 46.8] & 0.33 & paired\_t & 0.155 & 0.392 \\
+    E vs B   joint defence & Sharpe ratio (attack on) & 20 & 16.8 & [-5.47, 39.1] & 0.35 & paired\_t & 0.131 & 0.392 \\
+    E vs B   joint defence & CVaR (worst 10\%) (attack on) & 20 & -2.51 & [-5.31, -0.239] & -0.43 & wilcoxon & 0.058 & 0.233 \\
+    E vs B   joint defence & Detection AUROC & 20 & $-9.75\times10^{-4}$ & [-0.00651, 0.00456] & -0.082 & paired\_t & 0.716 & 0.716 \\
+    E vs A   full vs undefended & Sortino ratio (attack on) & 20 & 27.9 & [0.816, 54.9] & 0.48 & paired\_t & 0.044 & 0.098 \\
+    E vs A   full vs undefended & Sharpe ratio (attack on) & 20 & 24.0 & [2.19, 45.8] & 0.52 & paired\_t & 0.033 & 0.098 \\
+    E vs A   full vs undefended & CVaR (worst 10\%) (attack on) & 20 & -3.02 & [-5.57, -0.919] & -0.56 & wilcoxon & 0.015 & 0.061 \\
+    E vs A   full vs undefended & Detection AUROC & 20 & -0.00291 & [-0.00857, 0.00275] & -0.24 & paired\_t & 0.296 & 0.296 \\
+    B vs F   adversary cost model & Sortino ratio (attack on) & 20 & -2.58 & [-30.9, 25.7] & -0.043 & paired\_t & 0.851 & 1.000 \\
+    B vs F   adversary cost model & Sharpe ratio (attack on) & 20 & -3.53 & [-26.6, 19.5] & -0.072 & paired\_t & 0.752 & 1.000 \\
+    B vs F   adversary cost model & CVaR (worst 10\%) (attack on) & 20 & 0.613 & [-1.18, 2.40] & 0.16 & paired\_t & 0.483 & 1.000 \\
+    B vs F   adversary cost model & Detection AUROC & 20 & -0.00171 & [-0.00498, 0.00103] & -0.24 & wilcoxon & 0.812 & 1.000 \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize Paired contrasts over seeds, paired by seed index. Holm adjustment is within each contrast's confirmatory family of 4 metrics. The raw p column is shown so the adjustment is auditable and is not itself a significance claim; only the adjusted column supports one. CIs are bootstrap.\end{minipage}
+\end{table}

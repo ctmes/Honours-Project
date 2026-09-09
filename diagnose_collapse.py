@@ -49,8 +49,13 @@ _MMLINE = re.compile(
     r"entropy:\s*(-?[\d.eE+]+)\s+bce_loss:\s*(-?[\d.eE+]+)\s+"
     r"adv_label_rate:\s*(-?[\d.eE+]+)")
 
+# bce_loss is the detection head's training signal and the only way to tell a
+# head that never learned from an eval that never sees what it learned. The v3
+# AUROC came back pinned at 0.497-0.500 in EVERY arm including the two with a
+# head, which is the signature of missing signal rather than a weak detector.
+# ln2 = 0.693 is the no-information floor for binary cross-entropy.
 _COLS = ["seed", "update", "phase", "reward_mm", "reward_adv",
-         "entropy", "ppo_loss", "value_loss", "adv_label_rate"]
+         "entropy", "ppo_loss", "value_loss", "bce_loss", "adv_label_rate"]
 
 _LN5 = float(np.log(5.0))
 
@@ -102,6 +107,7 @@ def extract(logdir: str, job: str, out: str) -> None:
                     cur["ppo_loss"] = _f(mm.group(1))
                     cur["value_loss"] = _f(mm.group(2))
                     cur["entropy"] = _f(mm.group(3))
+                    cur["bce_loss"] = _f(mm.group(4))
                     cur["adv_label_rate"] = _f(mm.group(5))
 
     with open(out, "w") as fh:

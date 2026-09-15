@@ -105,7 +105,7 @@
       "motivation": "Both pre-registered gates failed on v2 because of an environment implementation fault, not because of anything the hypotheses predict. Diagnosed from training logs and two 6-seed pilots BEFORE any v3 checkpoint existed.",
       "analysis_decisions_changed": "NONE. Hypotheses, primary_metrics, alpha, multiplicity, equivalence_margins, progression_gate criteria, seeds, checkpoint_step, periods_per_year and the common-adversary design are all unchanged. This amendment fixes the ENVIRONMENT, not the statistics, which is why signed_off is not reset.",
       "caveat": "The pilots ran 200 updates, a fifth of production, and classified seeds by terminal policy entropy rather than measured quote_presence. They establish that the ratchet is absent at that horizon; they do not establish that the v3 arms clear the progression gate. That remains a genuine pre-registered risk of failure.",
-      "candidate_sign_off": "PENDING COLIN REVIEW - drafted 2026-09-02, not yet approved."
+      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-02, not yet approved."
     },
     {
       "name": "v4_spread_skew_amendment",
@@ -119,7 +119,7 @@
       "behavioural_change_recorded": "spread_skew now masks the agent's OWN resting orders before reading the touch, as bobRL already did. This is a change to what the agent does, not only to what it reports, and is recorded as such. It matters more here than in bobRL: bobRL quotes AT the touch, whereas spread_skew derives prices FROM mid and spread, so quoting off one's own resting orders is a feedback loop that walks the quote away from the market. spread_multiplier (3.0), skew_multiplier (5.0) and multiplier_type ('tick') are now written out explicitly in the env config; they were absent from every v1-v3 config and would otherwise take dataclass defaults unnoticed, the same failure mode as inv_penalty_quadratic_factor.",
       "validity_gate_caveat": "quote_presence LOSES ITS DISCRIMINATING POWER under spread_skew and must not be cited as evidence that v4 is valid in the way it was for v3. spread_skew posts fixed_quant_value on BOTH sides on every step, so quote_presence is 1.0 unless the book is empty or the position limit is liquidating. The v2 failure mode it was built to catch - a policy abandoning two-sided quoting - is not expressible in this action space. Validity for v4 must be argued from inventory_sd, peak_inventory and the within-episode reward drift instead.",
       "preconditions_before_the_sweep": "A single-seed smoke run must reach at least update 3 (both previous v4-class launches died inside 80 seconds), and the perturbed-vs-clean action-agreement check must show the adversary actually flipping the selected action. If a spoofed observation does not change the chosen action, v4 fails for v3's reason and the sweep should not be run.",
-      "candidate_sign_off": "PENDING COLIN REVIEW - drafted 2026-09-10, not yet approved."
+      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-10, not yet approved."
     }
   ]
 }

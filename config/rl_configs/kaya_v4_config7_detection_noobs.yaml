@@ -1,0 +1,52 @@
+# ============================================================================
+# v4 EXPLORATORY arm G - detection head WITHOUT the fed-back detection channel.
+# Identical to kaya_v4_config4_detection.yaml except ENV_CONFIG and PROJECT.
+#
+# Breaks the use_detection_head / prev_detection_in_obs collinearity that makes
+# eval 1270's headline uninterpretable:
+#   G vs B (adversarial) -> auxiliary BCE loss alone, observation identical
+#   C (detection) vs G   -> observation channel alone, loss identical
+#
+# Launch (20 seeds, full length):
+#   sbatch --time=12:00:00 --array=0-19%10 slurm_cpu_sweep.sh kaya_v4_config7_detection_noobs
+#
+# NOT CONFIRMATORY and NOT in the pre-registered A-F design.
+# ============================================================================
+
+# List-valued params are per-agent-type: index 0 = AdversarialMM, index 1 = Spoofing
+"LR": [0.0003, 0.0003]
+"NUM_ENVS": 16
+"NUM_STEPS": 512
+"GRU_HIDDEN_DIM": 256          # dummy hidden dim for MLP pass-through carry
+"FC_DIM_SIZE": 256
+"TOTAL_TIMESTEPS": 2736128     # PHASE 1 (Q1) budget: 334 updates; q2/q3 phases override
+"ANNEAL_TOTAL_UPDATES": 1002   # LR anneal spans the whole Q1->Q2->Q3 chain
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
+"GAMMA": [0.999, 0.99]         # MM 0.999 (validated 2026-06-26 stability run); ADV 0.99
+"GAE_LAMBDA": [0.85, 0.95]
+"CLIP_EPS": 0.2
+"SCALE_CLIP_EPS": [false, false]
+"ENT_COEF": [0.01, 0.01]
+"VF_COEF": [0.5, 0.5]
+"MAX_GRAD_NORM": [0.5, 0.5]
+"ANNEAL_LR": [true, true]
+"NUM_AGENTS_PER_TYPE": [1, 1]
+"SEED": 42                     # overridden per job: SEED=${SLURM_ARRAY_TASK_ID}
+
+# Adversarial-specific (BCE branch skipped: use_detection_head=false in env json)
+"FREEZE_ALTERNATION": 10
+"DETECTION_LOSS_COEF": 0.5
+"PCGRAD_ENABLED": true
+"NORMALIZE_REWARDS": true
+"CHECKPOINT_EVERY": 50
+"REGIME_LABELS_PATH": "regime_labels.json"
+"WINDOW_TO_DATE_PATH": "window_to_date_2024_q1.json"   # phase 1; overridden per phase
+
+"ENV_CONFIG": "config/env_configs/adversarial_mm_v4_config7.json"
+
+"TimePeriod": "2024_q1"        # phase 1; slurm_sweep.sh overrides for q2/q3
+
+"ENTITY": "your-wandb-entity"
+"PROJECT": "v4_config7_detection_noobs"
+"WANDB_MODE": "disabled"

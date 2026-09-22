@@ -1,0 +1,19 @@
+\begin{table}[htbp]
+  \centering
+  \caption{H3: detection AUROC against chance.}
+  \label{tab:auroc}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    Arm & Head & n & Mean AUROC & $d$ & Test & $p$ vs 0.5 \\
+    \midrule
+    A  baseline & no & 20 & 0.5019 & 0.18 & t & 0.425 \\
+    B  adversarial & no & 20 & 0.5024 & 0.22 & t & 0.329 \\
+    C  +detection & yes & 20 & 0.4970 & -0.25 & t & 0.274 \\
+    D  +regime & no & 20 & 0.4991 & -0.074 & wilcoxon & 0.784 \\
+    E  full & yes & 20 & 0.4975 & -0.20 & t & 0.377 \\
+    F  unconstrained & no & 20 & 0.5012 & 0.11 & t & 0.630 \\
+    A-S benchmark & no & 20 & 0.5041 & 0.63 & t & 0.011 \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize One-sample test of AUROC against chance (0.5) on the mixed attack/clean stream, per arm, not adjusted across arms. Every arm reports an AUROC because the rollout always computes one, but only the arms with a detection head can support or refute H3; a nominal result on a headless arm is not a finding. 1 headless arm(s) reach nominal significance here, which is unremarkable across 7 uncorrected tests and is left unbolded for that reason.\end{minipage}
+\end{table}

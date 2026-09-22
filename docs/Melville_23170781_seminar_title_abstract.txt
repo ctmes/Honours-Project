@@ -1,0 +1,14 @@
+Name: Colin Melville
+Student number: 23170781
+
+Title:
+Attack-Aware Market Making: Adversarial Co-Training with Economically-Constrained Spoofing Agents
+
+Abstract:
+Spoofing, placing orders intended to be cancelled before execution to mislead other traders, is illegal, yet market makers must quote in markets where it may occur. This project investigates whether a reinforcement-learning market maker can withstand economically constrained spoofing attacks.
+
+We extend JaxMARL-HFT, a GPU-accelerated multi-agent simulator replaying historical NASDAQ AMZN limit-order-book data, with a learned spoofing adversary that overlays fictitious volume on the market maker's observed order book. The adversary is constrained by a per-episode volume cap and penalties for accidental fills and expected enforcement costs. We evaluate adversarial co-training alongside two defences: an auxiliary spoofing-detection head and a volatility-regime indicator.
+
+Using a pre-specified design with 20 random seeds per configuration, we found that 10-14 of 20 seeds per configuration posted essentially no two-sided quotes, and every such seed gave identical results with and without the attack. After adding position limits with forced liquidation, the number of such seeds fell to at most 4 per configuration. The revised market maker held smaller inventories and incurred smaller tail losses than an Avellaneda-Stoikov benchmark, although mean return remained negative.
+
+The spoofing attack changed mean Sharpe ratio, Sortino ratio, and CVaR by less than 1% in every configuration. The spoofing-detection head performed at chance level (AUROC about 0.50). The combined co-training-and-defence configuration improved Sharpe and Sortino ratios relative to baseline (d about 0.5) but worsened CVaR (d about -0.6); neither result survived Holm correction (adjusted p = 0.098 and 0.061). In this study, robustness comparisons could not distinguish a failed defence from an attack that was either ignored by the policy or too weak to affect outcomes.

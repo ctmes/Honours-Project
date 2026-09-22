@@ -171,6 +171,15 @@ def main():
                               yaml_path=_eval_yaml(6),
                               n_envs=args.n_envs, periods_per_year=ppy, step=step,
                               seeds=list(range(len(run_names))), **adv_kw),
+        # ARM G - EXPLORATORY, not in the pre-registered A-F design. Opt in with
+        # --arms ...,detection_noobs; including it makes the run `partial`, which
+        # is correct: it is an extension, not the registered analysis.
+        # G vs adversarial isolates the auxiliary BCE loss (observation identical);
+        # detection vs G isolates the fed-back detection channel (loss identical).
+        "detection_noobs": dict(project=f"{PFX}_config7_detection_noobs",
+                                run_names=run_names, yaml_path=_eval_yaml(7),
+                                n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                                seeds=list(range(len(run_names))), **adv_kw),
         "as": dict(fixed_policy=True, n_seeds=len(run_names),
                    yaml_path="config/rl_configs/eval_2024_test_as.yaml",
                    n_envs=args.n_envs, periods_per_year=ppy,

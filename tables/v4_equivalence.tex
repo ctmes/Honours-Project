@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+  \centering
+  \caption{H2: no degradation on clean data (TOST).}
+  \label{tab:equivalence}
+  \begin{tabular}{lrrrrrrrr}
+    \toprule
+    Comparison & Metric & n & Mean diff. & Margin & $p$ lower & $p$ upper & $p$ TOST & Equivalent \\
+    \midrule
+    full vs baseline & Sortino ratio (attack off) & 20 & 67.3 & 0.500 & $<$0.001 & 1.000 & 1.000 & \textbf{no} \\
+    full vs baseline & Sharpe ratio (attack off) & 20 & 48.4 & 0.500 & $<$0.001 & 1.000 & 1.000 & \textbf{no} \\
+    adversarial vs baseline & Sortino ratio (attack off) & 20 & -12.7 & 0.500 & 0.760 & 0.222 & 0.760 & \textbf{no} \\
+    adversarial vs baseline & Sharpe ratio (attack off) & 20 & -7.99 & 0.500 & 0.707 & 0.268 & 0.707 & \textbf{no} \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize Two one-sided tests against pre-registered margins. Equivalence requires BOTH one-sided tests to reject; a large p on a difference test is not evidence of equivalence. Margins are a scientific input fixed before the data were seen, not derived from them.\end{minipage}
+\end{table}

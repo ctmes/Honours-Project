@@ -1,0 +1,19 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Are the non-quoting seeds inactive, or ratcheting inventory?}
+  \label{tab:inventory}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    Arm & No 2-sided & of those flat & max inv. SD & max peak $|$inv$|$ & Reading \\
+    \midrule
+    A  baseline & 0 & 0 & n/a & n/a & -- \\
+    B  adversarial & 0 & 0 & n/a & n/a & -- \\
+    C  +detection & 0 & 0 & n/a & n/a & -- \\
+    D  +regime & 0 & 0 & n/a & n/a & -- \\
+    E  full & 0 & 0 & n/a & n/a & -- \\
+    F  unconstrained & 0 & 0 & n/a & n/a & -- \\
+    A-S benchmark & 0 & 0 & n/a & n/a & -- \\
+    \bottomrule
+  \end{tabular}
+  \begin{minipage}{\linewidth}\vspace{4pt}\footnotesize Restricted to the seeds with no two-sided quote. If those seeds were sitting at a no-trade optimum their inventory SD would be zero; a large inventory SD and peak excursion instead means they are quoting one-sided and accumulating directionally, which is a different failure with a different fix. Columns are maxima over that subgroup.\end{minipage}
+\end{table}

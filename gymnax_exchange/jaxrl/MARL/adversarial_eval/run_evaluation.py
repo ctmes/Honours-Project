@@ -203,6 +203,12 @@ def run_full_evaluation(
         ("full_vs_adversarial",            "full",          "adversarial"),   # joint
         ("full_vs_baseline",               "full",          "baseline"),
         ("adversarial_vs_unconstrained",   "adversarial",   "unconstrained"), # contribution 1
+        # Decomposition of the eval-1270 headline. use_detection_head and
+        # prev_detection_in_obs are collinear across arms A-F, so "the detection
+        # head helps" is unattributable there. Arm G holds the loss and drops the
+        # channel. Skipped automatically when G was not evaluated.
+        ("detection_noobs_vs_adversarial", "detection_noobs", "adversarial"),  # auxiliary loss alone
+        ("detection_vs_detection_noobs",   "detection",     "detection_noobs"),# obs channel alone
     ]
     contrasts = [(lab, a, b) for lab, a, b in _CANDIDATES
                  if a in metrics_by_config and b in metrics_by_config]

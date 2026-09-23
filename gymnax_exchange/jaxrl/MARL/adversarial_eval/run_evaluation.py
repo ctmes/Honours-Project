@@ -57,6 +57,15 @@ _RISK_METRICS = ("sharpe", "sortino", "cvar",
                  # Diagnostic/descriptive only: not in the confirmatory family.
                  "mean_attack_rate", "mean_injected_volume",
                  "injected_volume_per_attack",
+                 # Per-side split of the same injection. check_adversary_lever.py
+                 # showed on a synthetic fixture that SIDEDNESS, not magnitude, is
+                 # what reaches queue_imbalance (symmetric injection zeroes it,
+                 # one-sided flips 9x more of a random policy head's action). These
+                 # measure which one the TRAINED, cost-constrained adversary
+                 # actually chose. Diagnostic/descriptive only: not in the
+                 # confirmatory family.
+                 "mean_bid_volume_injected", "mean_ask_volume_injected",
+                 "mean_injection_asymmetry",
                  "sortino_lowvol", "sortino_highvol", "regime_gap")
 
 # Confirmatory family (Holm-adjusted). Keep this SMALL: at n=20 seeds, paired-t

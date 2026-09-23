@@ -220,6 +220,13 @@ class AdversarialMARLEnv(MARLEnv):
         info["adv_label"] = adv_label
         info["regime"] = regime
         info["volume_injected_step"] = jnp.sum(clipped_adv_action)
+        # Per-side split of the same clipped_adv_action already sliced above
+        # (bid = [:5], ask = [5:]) — lets downstream analysis check whether the
+        # TRAINED adversary injects one-sided (the lever that reaches
+        # queue_imbalance) or symmetrically (which zeroes it), rather than only
+        # a synthetic fixture's answer to that question.
+        info["bid_volume_injected_step"] = jnp.sum(clipped_adv_action[:5])
+        info["ask_volume_injected_step"] = jnp.sum(clipped_adv_action[5:])
 
         return obs_list, new_state, reward_list, dones, info
 

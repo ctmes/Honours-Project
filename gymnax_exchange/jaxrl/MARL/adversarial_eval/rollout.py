@@ -216,7 +216,8 @@ def run_rollout(env, networks, train_states, config, attack_mode, rng, n_envs, n
     tick_size = float(env.multi_agent_config.world_config.tick_size)
 
     series = {"ret": [], "inventory": [], "det_prob": [], "adv_label": [],
-              "regime": [], "quote_disp_ticks": [], "volume_injected": []}
+              "regime": [], "quote_disp_ticks": [], "volume_injected": [],
+              "bid_volume_injected": [], "ask_volume_injected": []}
 
     for _ in range(n_steps):
         actions, det_mm = [], None
@@ -256,6 +257,12 @@ def run_rollout(env, networks, train_states, config, attack_mode, rng, n_envs, n
         # are the attack profile the constrained-vs-unconstrained comparison rests on.
         series["volume_injected"].append(
             np.asarray(info["volume_injected_step"], dtype=np.float64).reshape(-1))
+        # Per-side split — sidedness, not magnitude, is what reaches queue_imbalance
+        # (see check_adversary_lever.py); this measures it on the TRAINED policy.
+        series["bid_volume_injected"].append(
+            np.asarray(info["bid_volume_injected_step"], dtype=np.float64).reshape(-1))
+        series["ask_volume_injected"].append(
+            np.asarray(info["ask_volume_injected_step"], dtype=np.float64).reshape(-1))
         series["regime"].append(np.asarray(info["regime"]).reshape(-1))
 
         # Quote displacement (proposal behavioural metric): |quoted mid - true end mid|
@@ -330,6 +337,22 @@ def rollout_metrics(arrays, periods_per_year):
         if np.isfinite(sortino_low) and np.isfinite(sortino_high):
             regime_gap = abs(sortino_high - sortino_low)
 
+    # Per-side injection asymmetry on the TRAINED adversary's actual actions.
+    # check_adversary_lever.py established on a synthetic fixture that sidedness,
+    # not magnitude, is what reaches queue_imbalance (symmetric injection leaves it
+    # exactly zero); this measures which one a converged, cost-constrained policy
+    # actually chose. 0 = always symmetric, 1 = always fully one-sided. Undefined
+    # (nan) on rollouts with no material injection on either side.
+    mean_bid_volume = mean_ask_volume = injection_asymmetry = float("nan")
+    bid_v, ask_v = arrays.get("bid_volume_injected"), arrays.get("ask_volume_injected")
+    if bid_v is not None and ask_v is not None:
+        mean_bid_volume, mean_ask_volume = float(bid_v.mean()), float(ask_v.mean())
+        total_v = bid_v + ask_v
+        active = total_v > 1e-8
+        if active.any():
+            injection_asymmetry = float(
+                np.mean(np.abs(bid_v[active] - ask_v[active]) / total_v[active]))
+
     return {
         "sharpe": float(sharpe),
         "sortino": float(sortino),
@@ -346,6 +369,9 @@ def rollout_metrics(arrays, periods_per_year):
         "mean_injected_volume": float(arrays["volume_injected"].mean()),
         "injected_volume_per_attack": float(
             arrays["volume_injected"].sum() / max(arrays["adv_label"].sum(), 1.0)),
+        "mean_bid_volume_injected": mean_bid_volume,
+        "mean_ask_volume_injected": mean_ask_volume,
+        "mean_injection_asymmetry": injection_asymmetry,
     }
 
 

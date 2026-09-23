@@ -1,0 +1,54 @@
+[
+  {
+    "defended": "full",
+    "baseline": "baseline",
+    "metric": "sortino_off",
+    "n": 20,
+    "mean_diff": 29.392463860603858,
+    "margin": 0.5,
+    "p_lower_noninferiority": 0.014645795058685351,
+    "p_upper_not_used_for_verdict": 0.9827779469688948,
+    "two_sided_tost_p": 0.9827779469688948,
+    "noninferior": true,
+    "two_sided_equivalent": false
+  },
+  {
+    "defended": "full",
+    "baseline": "baseline",
+    "metric": "sharpe_off",
+    "n": 20,
+    "mean_diff": 25.117926280472574,
+    "margin": 0.5,
+    "p_lower_noninferiority": 0.01083426793232467,
+    "p_upper_not_used_for_verdict": 0.9867063708164102,
+    "two_sided_tost_p": 0.9867063708164102,
+    "noninferior": true,
+    "two_sided_equivalent": false
+  },
+  {
+    "defended": "adversarial",
+    "baseline": "baseline",
+    "metric": "sortino_off",
+    "n": 20,
+    "mean_diff": 9.296232744628545,
+    "margin": 0.5,
+    "p_lower_noninferiority": 0.1262439657638328,
+    "p_upper_not_used_for_verdict": 0.8487209428710704,
+    "two_sided_tost_p": 0.8487209428710704,
+    "noninferior": false,
+    "two_sided_equivalent": false
+  },
+  {
+    "defended": "adversarial",
+    "baseline": "baseline",
+    "metric": "sharpe_off",
+    "n": 20,
+    "mean_diff": 7.815752718770858,
+    "margin": 0.5,
+    "p_lower_noninferiority": 0.11733423054714154,
+    "p_upper_not_used_for_verdict": 0.8531232677170961,
+    "two_sided_tost_p": 0.8531232677170961,
+    "noninferior": false,
+    "two_sided_equivalent": false
+  }
+]

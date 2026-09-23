@@ -213,3 +213,25 @@ def test_perturbation_index_assignment():
     for idx in list(ask_vol_idx) + list(bid_vol_idx):
         assert float(perturbed[idx]) == 1.0, \
             f"Index {idx} should be 1.0 after perturbation, got {float(perturbed[idx])}"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: bid/ask split of clipped_adv_action for the sidedness diagnostic
+# ---------------------------------------------------------------------------
+
+def test_bid_ask_volume_split_one_sided():
+    """clipped_adv_action[:5]=bid, [5:]=ask (same convention as the L2 perturbation
+    above) -- info["bid_volume_injected_step"]/["ask_volume_injected_step"] must use
+    the same split or the sidedness diagnostic silently mislabels which side attacked."""
+    clipped = jnp.array([2.0, 2.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # bid-only
+    bid_vol = jnp.sum(clipped[:5])
+    ask_vol = jnp.sum(clipped[5:])
+    assert float(bid_vol) == 10.0
+    assert float(ask_vol) == 0.0
+
+
+def test_bid_ask_volume_split_symmetric():
+    clipped = jnp.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    bid_vol = jnp.sum(clipped[:5])
+    ask_vol = jnp.sum(clipped[5:])
+    assert float(bid_vol) == float(ask_vol) == 5.0

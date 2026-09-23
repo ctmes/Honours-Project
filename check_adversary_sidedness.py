@@ -248,17 +248,41 @@ def main() -> int:
     d_qi = float(np.mean([a["qi_absmean"] - b["qi_absmean"]
                           for a, b in zip(rows["on"], rows["off"])]))
 
+    # Magnitude BEFORE sidedness. A sidedness index is a ratio, so it stays
+    # well-defined and can look substantial while the numerator and denominator
+    # are both ~0 -- 19% asymmetry of nothing is still nothing. Distinguishing
+    # "chose a balanced attack" from "chose not to attack" changes the claim.
+    m_mag = float(np.mean([r["bid_tot"] + r["ask_tot"] for r in rows["on"]]))
+    m_qi_off = float(np.mean([r["qi_absmean"] for r in rows["off"]]))
+
     print("\n3. VERDICT")
+    print("   mean total action (of 1.0)  %.4f   <- magnitude: is it attacking AT ALL?" % m_mag)
     print("   mean |a[0]-a[5]|            %.4f" % m_asym)
     print("   mean sidedness index        %.4f   (0 = perfectly symmetric, 1 = one side only)" % m_side)
+    print("   mean |QI| clean (attack off)%.4f   <- headroom the spoof has to work with" % m_qi_off)
     print("   mean |QI| shift on-vs-off   %+.4f   (lever check: one-sided -> ~+0.50, symmetric -> ~0.00)" % d_qi)
     print()
-    if d_qi < 0.05:
-        print("   SYMMETRIC. The trained adversary does not move queue_imbalance, which is")
-        print("   the channel the attack exists to poison. H1's null is then uninformative")
-        print("   about robustness: reading (b) in this file's header. Report H1 as")
-        print("   'the adversary did not converge to an effective attack under this cost")
-        print("   model', NOT as 'the market maker is robust'.")
+    if m_mag < 0.05:
+        print("   ABSTAINED. The adversary emits a near-zero action (%.4f of a possible" % m_mag)
+        print("   %d.0 across %d levels): it has not learned a symmetric attack, it has" % (2 * n_lv, 2 * n_lv))
+        print("   learned NOT TO ATTACK. This is what the cost model predicts -- c_fill and")
+        print("   c_reg are charged unconditionally while the profit tax is zero when")
+        print("   nothing is extracted, so attacking a market maker it cannot move is")
+        print("   strictly negative EV and a -> 0 is optimal.")
+        print()
+        print("   H1 is therefore UNTESTED, not supported or refuted. Report it as 'the")
+        print("   constrained adversary did not converge to an attack under this cost")
+        print("   model', NOT as 'the market maker is robust'. To test H1 you need an")
+        print("   adversary that attacks: re-run this on the cost-free arm")
+        print("   (v4_config6_unconstrained, which zeroes c_fill/c_reg/kappa/p_detect).")
+        print("   If that one also abstains, the failure is in adversary training or")
+        print("   credit assignment, not in the cost model.")
+    elif d_qi < 0.05:
+        print("   SYMMETRIC. The adversary injects materially (%.4f) but splits it evenly," % m_mag)
+        print("   so queue_imbalance -- the channel the attack exists to poison -- does not")
+        print("   move. H1's null is uninformative about robustness: reading (b) in this")
+        print("   file's header. Report H1 as 'the adversary did not converge to an")
+        print("   EFFECTIVE attack', NOT as 'the market maker is robust'.")
     elif d_qi < 0.25:
         print("   PARTIALLY ONE-SIDED. The attack reaches queue_imbalance but well short of")
         print("   the 0.50 a fully one-sided spoof achieves. H1's null is weak evidence of")

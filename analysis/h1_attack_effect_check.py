@@ -76,12 +76,17 @@ _SANITY_REFERENCE = {
 _SANITY_TOL_D = 0.02
 
 
-def within_arm(report: EvalReport, source_name: str) -> list[dict]:
-    """Does attack-on differ from attack-off, within each arm, on its own?"""
+def within_arm(report: EvalReport, source_name: str,
+               on_suffix: str = "_on", off_suffix: str = "_off") -> list[dict]:
+    """Does attack-on differ from attack-off, within each arm, on its own?
+
+    on_suffix="_forced" reads eval_forced_attack.py output, whose attack condition
+    is a forced worst-case injection rather than the co-trained adversary.
+    """
     rows = []
     for arm in report.factorial_arms():
         for metric in METRICS:
-            on_key, off_key = f"{metric}_on", f"{metric}_off"
+            on_key, off_key = f"{metric}{on_suffix}", f"{metric}{off_suffix}"
             if not (report.has(arm, on_key) and report.has(arm, off_key)):
                 continue
             on, off = report.per_seed(arm, on_key), report.per_seed(arm, off_key)
@@ -105,7 +110,8 @@ def within_arm(report: EvalReport, source_name: str) -> list[dict]:
     return rows
 
 
-def cross_arm_diff_in_diff(report: EvalReport) -> list[dict]:
+def cross_arm_diff_in_diff(report: EvalReport, on_suffix: str = "_on",
+                           off_suffix: str = "_off") -> list[dict]:
     """Does the attack's effect (on - off) differ between two arms?
 
     This is the actual H1 test: for each pre-registered contrast, compare
@@ -117,7 +123,7 @@ def cross_arm_diff_in_diff(report: EvalReport) -> list[dict]:
         pvals = {}
         row_data = {}
         for metric in METRICS:
-            on_key, off_key = f"{metric}_on", f"{metric}_off"
+            on_key, off_key = f"{metric}{on_suffix}", f"{metric}{off_suffix}"
             needed = [(arm_a, on_key), (arm_a, off_key),
                       (arm_b, on_key), (arm_b, off_key)]
             if not all(report.has(a, k) for a, k in needed):
@@ -151,15 +157,18 @@ def cross_arm_diff_in_diff(report: EvalReport) -> list[dict]:
 
 
 def format_report(report: EvalReport, source_name: str,
-                   within: list[dict], did: list[dict]) -> str:
+                   within: list[dict], did: list[dict],
+                   on_suffix: str = "_on", off_suffix: str = "_off") -> str:
+    attack = report.meta.get("attack_construction", "co-trained adversary")
     lines = [
         f"=== H1 attack-effect check: {source_name} ===",
         report.describe(),
         f"is_confirmatory={report.is_confirmatory}  "
         f"[DiD Holm-adjusted only if True; otherwise exploratory estimates]",
+        f"attack condition: {attack}  (keys *{on_suffix} vs *{off_suffix})",
         "",
-        "--- (1) WITHIN-ARM: attack-on vs attack-off, paired by seed ---",
-        "  (the direct test of whether the adversary does anything to this arm)",
+        f"--- (1) WITHIN-ARM: *{on_suffix} vs *{off_suffix}, paired by seed ---",
+        "  (the direct test of whether the attack does anything to this arm)",
     ]
     for r in within:
         tag = f"  {r['sanity_check']}" if r["sanity_check"] else ""
@@ -181,13 +190,14 @@ def format_report(report: EvalReport, source_name: str,
     return "\n".join(lines)
 
 
-def run(path: str, label: str) -> dict:
+def run(path: str, label: str, on_suffix: str = "_on", off_suffix: str = "_off") -> dict:
     report = EvalReport.load(path)
     source_name = label or path.split("/")[-1]
-    within = within_arm(report, source_name)
-    did = cross_arm_diff_in_diff(report)
-    print(format_report(report, source_name, within, did))
-    return {"source": source_name, "within_arm": within, "diff_in_diff": did}
+    within = within_arm(report, source_name, on_suffix, off_suffix)
+    did = cross_arm_diff_in_diff(report, on_suffix, off_suffix)
+    print(format_report(report, source_name, within, did, on_suffix, off_suffix))
+    return {"source": source_name, "on_suffix": on_suffix, "off_suffix": off_suffix,
+            "within_arm": within, "diff_in_diff": did}
 
 
 if __name__ == "__main__":
@@ -196,10 +206,13 @@ if __name__ == "__main__":
     ap.add_argument("eval_json", help="path to an eval_*.json report")
     ap.add_argument("--label", default="", help="source name for sanity-check lookup, "
                     "e.g. 'eval_1270.json' (defaults to the filename)")
+    ap.add_argument("--on-suffix", default="_on",
+                    help="attack-condition key suffix; '_forced' for eval_forced_attack.py output")
+    ap.add_argument("--off-suffix", default="_off")
     ap.add_argument("--out", default=None, help="optional path to write rows as JSON")
     args = ap.parse_args()
 
-    result = run(args.eval_json, args.label)
+    result = run(args.eval_json, args.label, args.on_suffix, args.off_suffix)
     if args.out:
         with open(args.out, "w") as f:
             json.dump(result, f, indent=2)

@@ -374,7 +374,13 @@ def tbl_gate(report: EvalReport) -> Table | None:
             spec = f"within {_num(d['factor'], 2)}$\\times$ A-S"
         else:
             crit, spec = "--", "--"
-        ok = bool(gate.get(f"{key}_ok", False))
+        # detail's key is "inventory_sd" (a display label) but aggregate.py's
+        # GateResult field is "inventory_ok", not "inventory_sd_ok" -- f"{key}_ok"
+        # silently missed this one and .get()'s False default made every report
+        # print FAIL on this row regardless of the true value. sharpe/sortino
+        # happen to match key+"_ok" and were never wrong.
+        ok_key = "inventory_ok" if key == "inventory_sd" else f"{key}_ok"
+        ok = bool(gate.get(ok_key, False))
         rows.append([_esc(key), _num(d.get("ippo")), _num(d.get("as")),
                      spec, crit,
                      "pass" if ok else r"\textbf{FAIL}"])

@@ -758,7 +758,10 @@ def fig_progression_gate(report: EvalReport):
     for ax, key in zip(axes, keys):
         d = detail[key]
         ippo, as_v = float(d.get("ippo", np.nan)), float(d.get("as", np.nan))
-        ok = bool(gate.get(f"{key}_ok", False))
+        # detail's key is "inventory_sd" (display label) but GateResult's field
+        # is "inventory_ok" -- see the identical fix/comment in tables.py:tbl_gate.
+        ok_key = "inventory_ok" if key == "inventory_sd" else f"{key}_ok"
+        ok = bool(gate.get(ok_key, False))
         # The gate criterion is a comparison of MEANS, so the mean is drawn as
         # the tested quantity -- but as a rule over the seed cloud, not as a bar.
         # On this data the seed SD is several times the mean (Sharpe: mean -8.8,

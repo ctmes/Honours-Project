@@ -1,59 +1,99 @@
-# Results summary — four hypotheses, resolved (2026-09-26)
+# Results summary — four hypotheses, resolved (2026-09-27)
 
-Source data: `results/eval_1179095.json` (v3, confirmatory, n=20), `results/eval_1270.json`
-and `results/eval_17313.json` (v4, exploratory, n=20). Supporting analysis:
+Source data: `results/eval_1179095.json` (v3, confirmatory, n=20) and
+`results/eval_17313.json` (v4, exploratory, n=20, `partial_run` only in the sense
+that it adds the `detection_noobs` arm to the same run captured in the earlier,
+now-superseded `results/eval_1270.json` — `full_vs_baseline` is byte-identical
+between the two; `eval_17313` is cited throughout as it's the more complete
+file). Supporting analysis: `analysis/h1_attack_effect_check.py`,
 `analysis/h2_noninferiority.py`, `analysis/h4_regime_gap_check.py`,
-`analysis/detection_noobs_check.py`. Full derivations in `docs/note_h2_noninferiority.md`
+`analysis/detection_noobs_check.py`, `check_adversary_sidedness.py`. Full
+derivations in `docs/note_h1_attack_effect.md`, `docs/note_h2_noninferiority.md`
 and `docs/note_h4_regime_gap.md`.
 
 **Design reminder.** v3 is the pre-registered confirmatory study (`preregistration.json`,
-signed off 2026-08-27). v4 changes the MM's action space (`bobRL` → `spread_skew`) via a
-pre-registered amendment written *before* any v4 result existed, to fix an identified
-confound (v3's MM quoted prices were structurally immune to the adversary). v4 is
-permanently gated exploratory (`confirmatory: false`) regardless of what it shows — no
-v4 p-value is a significance claim. Both studies share seeds, checkpoint step, alpha,
+signed off by the candidate 2026-08-27 — **supervisor confirmation from Dr Wen remains
+outstanding as of this writing**, and both the auto-liquidate and spread_skew amendments
+are marked `candidate_sign_off: PENDING REVIEW` in `preregistration.json`; this should be
+resolved before submission). v4 changes the MM's action space (`bobRL` → `spread_skew`)
+via a pre-registered amendment written *before* any v4 result existed, to fix an
+identified confound (v3's MM quoted prices were structurally immune to the adversary).
+v4 is permanently gated exploratory (`confirmatory: false`) regardless of what it shows —
+no v4 p-value is a significance claim. Both studies share seeds, checkpoint step, alpha,
 and the common-adversary design for internal validity.
+
+**Scope limitation.** All data is a single ticker (AMZN, LOBSTER + Databento) and a
+single calendar year (2024: train 2024-01-01..2024-09-30, holdout 2024-10-01..2024-12-31).
+Every claim below is scoped to this instrument and period, not to NASDAQ order flow
+generally.
+
+**Validity gate, both studies.** The pre-registered `progression_gate` (does the
+baseline, undefended MM beat the fixed-policy Avellaneda-Stoikov benchmark by more than
+a stated margin?) **FAILS in both v3 and v4**: v3 baseline Sharpe -119.4 vs A-S +4.6,
+Sortino -138.7 vs +17.5; v4 baseline Sharpe -30.3 vs A-S +4.6, Sortino -16.4 vs +17.5
+(inventory_sd passes in both). Every comparative claim below holds only *among* the
+trained arms, which the pre-registration always intended (`interpretation_notes`:
+absolute PnL is not a hypothesis) — but the gate failing means the baseline reference
+point itself is not a competent trading policy, which is worth the reader knowing
+before weighing any "arm X beats baseline" claim. Reproduce: `python -m analysis.tables
+results/eval_1179095.json --only gate --stdout` (and the v4 equivalent).
 
 ---
 
-## H1 — adversarial robustness (null in the confirmatory design, replicated at larger magnitude once a design confound is fixed)
+## H1 — adversarial robustness: **UNTESTED**, not null and not replicated (corrected 2026-09-27)
 
-**v3 (confirmatory).** `full_vs_baseline` shows a consistent medium effect across all
-three non-AUROC primary metrics: sortino d=+0.48 (Holm p=0.098), sharpe d=+0.52
-(Holm p=0.098), cvar d=-0.56 (Holm p=0.061). None clears α=0.05 after Holm correction —
-the study was powered for d≥0.8 and this effect is smaller. Exhaustive check of all 8
-pre-registered contrasts × 4 primary metrics (32 tests): none clear α=0.05. This is the
-one signal in the confirmatory family; everything else is flat.
+**The contrast used to claim "replicated at d≈1.0" was wrong, and once corrected, so is
+the mechanism it was said to confirm.** Full derivation in `docs/note_h1_attack_effect.md`;
+summary below.
 
-**Why underpowered rather than absent matters.** Achieved power for a paired two-sided
-t-test, n=20, α=0.05, d=0.5 is ≈33–40%. Failing to reach significance at this n for an
-effect this size is the *expected* outcome of the pre-registered power calculation
-(targeted d≥0.8), not evidence of no effect.
+**The v4 "d≈1.0" figure was the H2 clean-data statistic, misread onto the H1
+(attack-condition) heading.** `full_vs_baseline`'s `sharpe_off`/`sortino_off` diffs
+(+48.45, +67.34) are the `equivalence_off` block — the no-attack comparison — not a
+measure of attack response. Worse, the underlying comparison itself (`full` vs
+`baseline`, both under attack) conflates general policy quality with attack response:
+some arms partially collapse to a no-trade equilibrium for reasons that have nothing to
+do with the adversary (see H3 below), which alone can produce a large between-arm gap
+under attack with zero causal contribution from the attack.
 
-**v4 (exploratory) independently reproduces the same direction at far larger magnitude.**
-`full_vs_baseline`: sharpe_off diff +48.45 (d=1.00, Holm-analog p=1.4×10⁻⁴), sortino_off
-diff +67.34. The amendment motivating the action-space change was written before this
-result existed: v3's `_getActionMsgs_BobRL` sources prices from the real book and varies
-quantity only, so a perturbed observation could change *which* quantity pair the policy
-picked but never its quoted price — the adversary had no price lever. `spread_skew`
-derives prices from mid + spread, giving it one for the first time.
+**The correctly-specified test — within-arm attack-on vs attack-off, and the cross-arm
+difference-in-differences — is null-to-wrong-signed everywhere.** Within-arm: every
+arm in both v3 and v4, *including* `unconstrained` (kappa = p_detect = c_fill = 0, i.e.
+zero economic penalty on the adversary), shows no attack effect (|d| < 0.4, p > 0.1).
+Cross-arm DiD, the actual H1 test (isolates whether a defence changes the *size* of the
+attack's effect, not just arm quality under attack): v3 (confirmatory) is **wrong-signed**
+on both the codebase's own labelled H1 contrast (`adversarial_vs_baseline`: d=-0.38,
+Holm p=0.21) and the write-up's previous choice (`full_vs_baseline`: d=-0.39, Holm
+p=1.0); v4 (exploratory) flips to the right sign with a small-to-medium, uncorrected and
+non-multiplicity-adjusted effect (sortino p=0.048 among 24 comparisons run).
 
-**The adversary is confirmed non-degenerate, not a null-by-artifact.** A concern this
-session specifically checked: could the persistent null reflect the adversary settling
-into a cost-minimising symmetric injection (which zeroes `queue_imbalance` by
-construction) rather than genuinely testing the MM? Measured directly on the trained
-`v4_config3_full` adversary (n=3 seeds, forced attack-on): `mean_injection_asymmetry_on`
-= 0.528 (std 0.025) — roughly halfway between the synthetic fixture's symmetric (0.0,
-2.7% action-flip rate) and fully one-sided (1.0, 24% flip rate) benchmarks, with a
-persistent bid-side tilt (mean bid volume 1.99 vs ask 1.62). The adversary uses the
-sidedness lever; it did not degenerate.
+**Why: the adversary that produced every v4 number abstained.** Every v4 arm — including
+`unconstrained` — is evaluated under attack against the *same* common adversary
+checkpoint, `v4_config3_full` (pre-registered design, for internal validity).
+`check_adversary_sidedness.py` run directly against it (2026-09-27): mean injected action
+0.0159 of a possible 10.0 (0.159% of max), mean |queue_imbalance| shift on-vs-off -0.0018.
+**Verdict: ABSTAINED** — consistent with its cost model (c_fill/c_reg charged
+unconditionally, profit tax zero when nothing is extracted, so attacking an MM it cannot
+move is negative EV) and independently reproducing the 2026-09-22 session finding on the
+production checkpoint. This directly supersedes an earlier claim in this document that
+the same checkpoint showed `mean_injection_asymmetry_on = 0.528` and "did not
+degenerate" — that number does not reproduce on direct re-measurement and should be
+treated as retracted.
 
-**Write-up framing.** Not "H1 confirmed." Correct: *"the pre-registered confirmatory
-design found a consistent medium-sized effect (d≈0.5) it lacked power to confirm at
-Holm-corrected α=0.05; a pre-registered design correction that removes an identified
-confound in the original action space reproduces the same effect at d≈1.0 in an
-independent exploratory replication, with the adversary confirmed to be exploiting the
-lever the design correction was meant to give it, not degenerating."*
+A second, independent check on `v4_config6_unconstrained`'s own co-trained adversary
+(never used in evaluation) rules out pure credit-assignment failure as the reason: given
+zero cost, it *does* attack substantially (mean action 5.42 of 10) — but converges to a
+**symmetric** injection (sidedness 0.08 of 1.0), which cannot move queue_imbalance either.
+Even this adversary would not have produced an informative test if it had been used.
+
+**Write-up framing.** Not "H1 confirmed," not "H1 replicated," not "H1 null." Correct:
+*"H1 is untested across both studies. v3's confirmatory contrast is small,
+non-significant, and wrong-signed. v4's exploratory extension — built to give the
+adversary a price lever it previously lacked — does not settle H1 either way, because
+the mechanism it was built to exercise never substantially fired: the common evaluation
+adversary abstains under its cost model, and a cost-free variant that does attack
+converges to a pattern (symmetric injection) that cannot poison the one channel the
+attack relies on. Resolving H1 needs a design correction to the adversary's training
+incentives or convergence behaviour, not more seeds against the current checkpoint."*
 
 ---
 
@@ -151,7 +191,8 @@ large and consistent (d>1.0 across two independent arms, `detection` and
 
 | hypothesis | status | key number |
 |---|---|---|
-| H1 | null (confirmatory) → replicated (exploratory) | v3 d=0.48–0.56 (Holm p≈0.06–0.10); v4 d≈1.0 (p=1.4×10⁻⁴) |
+| H1 | **untested** (adversary abstains; corrected contrast wrong-signed in v3) | v3 DiD d=-0.38 (Holm p=0.21); v4 DiD d=+0.30–0.43 (uncorrected, 1 of 24 comparisons) |
 | H2 | **supported** (full model) | p=0.0146, p=0.0108 |
 | H3 | null (detection) / **supported** (regularisation, reframed) | AUROC≈0.50 everywhere; noobs ablation d>1.0, p<2×10⁻⁶ |
 | H4 | clean null | 3/4 isolations wrong-signed, none p<0.05 |
+| validity gate | **FAILS both studies** | baseline Sharpe -119/-30 vs A-S +4.6 (inventory_sd passes) |

@@ -79,4 +79,14 @@ the sign flipping correctly between `--side bid` and `--side ask`. If either che
 fails, the override mechanism is not reaching the environment the way this amendment
 assumes, and the grid is not run.
 
+**Preconditions — outcome (2026-09-27, recorded before the grid was submitted).**
+Seed-0 smoke tests (Kaya jobs 35836–35838, n_envs=64): `off` reproduced
+`eval_17313.json`'s `_off` values exactly (max|diff| = 0, baseline and full); attack
+rate 0.998 / 0.998 / 0.964; injection one-sided as intended; mean queue_imbalance
+−0.03 → +0.39 (bid) and −0.43 (ask). Budget 1e6 **bound** (exhausted in 0.3% of
+env-steps on bid, 3.9% on ask — the source of the ask side's 0.964 attack rate), so per
+the rule above it was raised: at **1e7** (job 35875, full arm, ask side, the worst
+case) attack rate 1.000, budget never exhausted, 92.5% remaining at episode end. The
+grid runs at `--budget-override 1e7`.
+
 **Candidate sign-off:** PENDING REVIEW — drafted 2026-09-27, not yet approved.

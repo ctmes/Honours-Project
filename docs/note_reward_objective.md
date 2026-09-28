@@ -13,8 +13,11 @@ asymmetrically damp the inventory component.
 **Provenance.** This is the reward family of the base paper: Mohl et al.
 (arXiv:2511.02136, eq. 3) train their market maker on
 r_Sp = Ψ_b + Ψ_s + Ψ_INV − (1−λ)·max(0, Ψ_INV), i.e. trading PnL plus
-inventory PnL with the *positive* part of the inventory PnL damped, following
-Spooner & Savani (2021). Our form is a parametrised member of the same family;
+inventory PnL with the *positive* part of the inventory PnL damped. Mohl et al.
+cite Spooner & Savani (2021) for it, but the asymmetrically dampened PnL
+originates in Spooner, Fearnley, Savani & Koukorinis (2018), "Market Making via
+Reinforcement Learning", AAMAS; cite 2018 as the origin (corrected 2026-09-28,
+docs/literature_audit_2026-09-28.md §3.6). Our form is a parametrised member of the same family;
 the two additions relative to the paper are (i) the maker-rebate term, which
 reflects the economics of passive liquidity provision on NASDAQ, and (ii) the
 overall inventory weight γ.

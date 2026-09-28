@@ -1,5 +1,8 @@
 # Amendment: forced worst-case attack, to make H1 identifiable
 
+> **Terminology (added 2026-09-28).** "Worst-case" in this note's title and the amendment name is historical. A uniform maximal-magnitude injection is one fixed attack, not the worst case: strategically timed or learned attacks can be stronger (Lin et al. 2017; Zhang et al. 2021). The thesis calls it the **maximal one-sided** attack. See docs/literature_audit_2026-09-28.md §3.5.
+
+
 **Written before any `eval_forced_attack.py` result exists.** Matches the discipline
 already applied to every prior design change in this project (`preregistration.json`'s
 `amendments`): the decision is recorded before the data that would validate or

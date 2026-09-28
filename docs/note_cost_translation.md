@@ -79,3 +79,31 @@ market replay, injected orders perturb the *observed* book but do not move
 prices causally, so all costs are normative — they encode what a real
 adversary would face, not what the simulated one mechanically incurs. The
 lit review develops this point in Section 3.2.
+
+---
+
+**Corrections verified against primary sources (2026-09-28).**
+
+- *Lek / Avalon remedy.* The disgorgement figures above ($4,495,564 plus $131,750
+  prejudgment interest) come from the original final judgment and are not the
+  final remedy. The **amended final judgment of 9 February 2021**, affirmed by the
+  Second Circuit on **15 June 2022**, ordered Avalon, Fayyer and Pustelnik **each**
+  to pay a **$7.5 million civil penalty**. The two schemes generated "more than $25
+  million in illicit proceeds" (SEC Litigation Release No. 25427,
+  https://www.sec.gov/enforcement-litigation/litigation-releases/lr-25427).
+  Secondary sources attribute the switch from disgorgement to penalties to *Liu v.
+  SEC* (2020). That link is not stated in the SEC release, so the thesis should cite
+  the release for the numbers and not assert the reason. **Effect on kappa:** total
+  sanctions of $22.5M against >$25M proceeds is about 0.9× proceeds, so the final
+  remedy still supports kappa ≈ 1. The anchor stands, and is now anchored on
+  penalties rather than on a disgorgement order that was superseded.
+- *Rule 610 access-fee cap.* The reduction to $0.001 was adopted on 18 September
+  2024 with an original compliance date of November 2025. It was then stayed in part
+  (December 2024), deferred to November 2026 (October 2025 order), and deferred again
+  to **November 2027** (June 2026). The conclusion is unchanged: $0.0030/share
+  applied throughout the 2024 data period
+  (https://www.sec.gov/newsroom/press-releases/2024-137).
+- *Maker rebate.* Top-tier Nasdaq credits for adding displayed liquidity were about
+  $0.0029/share in 2024 (Nasdaq price list; SR-NASDAQ-2024 filings). Credits are
+  tiered, so the 0.15 bps ≈ $0.0028/share rebate at AMZN ≈ $185 is an
+  **upper-tier** assumption and should be described as one.

@@ -103,6 +103,13 @@ python check_adversary_sidedness.py --project v4_config3_full --yaml config/rl_c
 python check_adversary_sidedness.py --project v4_config6_unconstrained --yaml config/rl_configs/eval_2024_test_v4_config6.yaml --seeds 0-4
 ```
 
+**Follow-up (2026-09-28): resolved.** The design correction called for below was made
+as a pre-registered exploratory amendment (`docs/note_forced_attack_amendment.md`).
+Instead of retraining the adversary, it forces a worst-case one-sided attack against
+the existing checkpoints. That treatment does reach the market maker, and H1 is **not
+supported**: see `docs/note_h1_forced_attack.md`. This note remains the explanation of
+why the pre-registered co-trained-adversary design could not answer H1 on its own.
+
 **Write-up note.** Do not report "H1 replicated at d≈1.0" — that number was
 the H2 clean-data (`_off`) statistic, misread onto the H1 (attack-condition)
 heading; the correctly-specified DiD test on the same data shows a much

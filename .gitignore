@@ -117,9 +117,10 @@ baseline_sweep_results/*
 # Secrets and run artifacts — must never be committed
 .env
 .env.*
+.mcp.json
 checkpoints/
 .hydra/
 pre_reset_states/
 
 # Internal working notes — not for the thesis or supervisor circulation
-docs/critical_review_2026-09-26.md
+docs/

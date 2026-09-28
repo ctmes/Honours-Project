@@ -1,0 +1,104 @@
+*** EXPLORATORY — FORCED WORST-CASE ATTACK (side=ask, budget=1e+07). Not a co-trained adversary, not the confirmatory result. See docs/note_forced_attack_amendment.md ***
+
+=== per-arm means (forced vs off) ===
+[baseline]
+  sharpe                     forced=    -31.32  off=    -30.26
+  sortino                    forced=    -17.34  off=     -16.4
+  cvar                       forced=    -4.407  off=    -4.306
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1483  off=        +0
+  qi_absmean                 forced=   +0.5714  off=   +0.5073
+  qi_mean                    forced=     -0.44  off=  -0.02437
+  budget_final_frac          forced=    0.9241
+  budget_exhausted_frac      forced=         0
+[adversarial]
+  sharpe                     forced=    -32.86  off=    -38.25
+  sortino                    forced=    -22.12  off=    -29.05
+  cvar                       forced=    -3.985  off=    -3.946
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1483  off=        +0
+  qi_absmean                 forced=   +0.5714  off=   +0.5075
+  qi_mean                    forced=   -0.4407  off=  -0.02467
+  budget_final_frac          forced=    0.9241
+  budget_exhausted_frac      forced=         0
+[full]
+  sharpe                     forced=    +16.84  off=    +18.19
+  sortino                    forced=     +48.9  off=    +50.94
+  cvar                       forced=    -8.548  off=    -8.537
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1479  off=        +0
+  qi_absmean                 forced=   +0.5731  off=   +0.5111
+  qi_mean                    forced=   -0.4405  off=  -0.02563
+  budget_final_frac          forced=    0.9243
+  budget_exhausted_frac      forced=         0
+[detection]
+  sharpe                     forced=    +21.39  off=     +21.6
+  sortino                    forced=    +55.69  off=    +56.03
+  cvar                       forced=    -6.874  off=    -6.876
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1484  off=        +0
+  qi_absmean                 forced=   +0.5715  off=   +0.5074
+  qi_mean                    forced=   -0.4407  off=  -0.02528
+  budget_final_frac          forced=     0.924
+  budget_exhausted_frac      forced=         0
+[regime]
+  sharpe                     forced=    -29.31  off=     -24.5
+  sortino                    forced=    -15.22  off=    -8.025
+  cvar                       forced=    -4.733  off=    -4.729
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1481  off=        +0
+  qi_absmean                 forced=   +0.5716  off=   +0.5083
+  qi_mean                    forced=     -0.44  off=  -0.02452
+  budget_final_frac          forced=    0.9241
+  budget_exhausted_frac      forced=         0
+[unconstrained]
+  sharpe                     forced=    -31.32  off=    -24.59
+  sortino                    forced=    -21.54  off=    -12.93
+  cvar                       forced=    -5.545  off=    -5.782
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1484  off=        +0
+  qi_absmean                 forced=   +0.5717  off=   +0.5077
+  qi_mean                    forced=   -0.4409  off=  -0.02509
+  budget_final_frac          forced=     0.924
+  budget_exhausted_frac      forced=         0
+[detection_noobs]
+  sharpe                     forced=    +20.27  off=    +20.59
+  sortino                    forced=    +52.76  off=    +53.13
+  cvar                       forced=    -8.619  off=    -8.511
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1480  off=        +0
+  qi_absmean                 forced=   +0.5726  off=   +0.5101
+  qi_mean                    forced=     -0.44  off=  -0.02488
+  budget_final_frac          forced=    0.9242
+  budget_exhausted_frac      forced=         0
+
+=== within-arm: forced vs off, paired by seed ===
+  baseline         sharpe   n=20  diff=   -1.066 d=-0.0626 wilcoxon  p=0.498
+  baseline         sortino  n=20  diff=  -0.9418 d=-0.0471 wilcoxon  p=0.648
+  baseline         cvar     n=20  diff=  -0.1011 d=-0.351 wilcoxon  p=0.143
+  adversarial      sharpe   n=20  diff=   +5.389 d=+0.393 wilcoxon  p=0.177
+  adversarial      sortino  n=20  diff=   +6.927 d=+0.449 wilcoxon  p=0.0826
+  adversarial      cvar     n=20  diff= -0.03988 d=-0.161 wilcoxon  p=0.105
+  full             sharpe   n=20  diff=   -1.357 d=-0.21 wilcoxon  p=0.811
+  full             sortino  n=20  diff=    -2.04 d=-0.212 wilcoxon  p=0.711
+  full             cvar     n=20  diff= -0.01112 d=-0.0545 wilcoxon  p=0.711
+  detection        sharpe   n=20  diff=  -0.2082 d=-0.189 wilcoxon  p=0.691
+  detection        sortino  n=20  diff=  -0.3423 d=-0.144 wilcoxon  p=0.363
+  detection        cvar     n=20  diff=+0.001756 d=+0.0205 wilcoxon  p=0.733
+  regime           sharpe   n=20  diff=   -4.817 d=-0.604 wilcoxon  p=0.00486
+  regime           sortino  n=20  diff=   -7.198 d=-0.629 wilcoxon  p=0.00422
+  regime           cvar     n=20  diff=-0.003826 d=-0.016 wilcoxon  p=0.648
+  unconstrained    sharpe   n=20  diff=   -6.726 d=-0.292 wilcoxon  p=0.43
+  unconstrained    sortino  n=20  diff=   -8.615 d=-0.336 wilcoxon  p=0.245
+  unconstrained    cvar     n=20  diff=  +0.2374 d=+0.244 wilcoxon  p=0.498
+  detection_noobs  sharpe   n=20  diff=  -0.3224 d=-0.0815 wilcoxon  p=0.435
+  detection_noobs  sortino  n=20  diff=  -0.3745 d=-0.0591 wilcoxon  p=0.407
+  detection_noobs  cvar     n=20  diff=  -0.1086 d=-0.235 wilcoxon  p=0.0312
+  (cross-arm DiD: python -m analysis.h1_attack_effect_check <out>.json --on-suffix _forced)

@@ -89,3 +89,44 @@ def test_budget_override_rejects_non_positive():
 def test_force_action_rejects_unknown_side():
     with pytest.raises(ValueError):
         force_action("both", 5)
+
+
+# ---------------------------------------------------------------------------
+# RC3 (robustness_checks_amendment_2026-09-28): detection AUROC forced vs off
+# ---------------------------------------------------------------------------
+
+def test_detection_shift_auroc_separates_shifted_head():
+    import numpy as np
+    from eval_forced_attack import detection_shift_auroc
+    rng = np.random.default_rng(0)
+    off = rng.uniform(0.0, 0.5, size=(50, 8))
+    forced = rng.uniform(0.5, 1.0, size=(50, 8))   # strictly above every off value
+    assert detection_shift_auroc(forced, off) == pytest.approx(1.0)
+    assert detection_shift_auroc(off, forced) == pytest.approx(0.0)
+
+
+def test_detection_shift_auroc_chance_when_identical():
+    import numpy as np
+    from eval_forced_attack import detection_shift_auroc
+    rng = np.random.default_rng(1)
+    x = rng.uniform(size=(400, 16))
+    y = rng.uniform(size=(400, 16))
+    assert detection_shift_auroc(x, y) == pytest.approx(0.5, abs=0.03)
+    # a constant head (no information at all) scores exactly 0.5 via tie handling
+    c = np.full((20, 4), 0.3)
+    assert detection_shift_auroc(c, c) == pytest.approx(0.5)
+
+
+def test_detection_shift_auroc_drops_step_zero():
+    import numpy as np
+    from eval_forced_attack import detection_shift_auroc
+    off = np.zeros((10, 2))
+    forced = np.zeros((10, 2))
+    forced[0] = 1.0   # only step 0 differs; it precedes any perturbed observation
+    assert detection_shift_auroc(forced, off) == pytest.approx(0.5)
+
+
+def test_head_arms_are_exactly_the_trained_heads():
+    from eval_forced_attack import ARMS, HEAD_ARMS
+    assert set(HEAD_ARMS) <= set(ARMS)
+    assert set(HEAD_ARMS) == {"detection", "full", "detection_noobs"}

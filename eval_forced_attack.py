@@ -1,4 +1,9 @@
-"""Is the trained market maker sensitive to a WORST-CASE spoof? (forced attack)
+"""Is the trained market maker sensitive to a MAXIMAL one-sided spoof? (forced attack)
+
+Terminology: the amendment that introduced this script is named
+"forced_worst_case_attack_amendment". A uniform maximal-magnitude injection is one
+fixed attack, not the worst case (timed or learned attacks can be stronger: Lin et
+al. 2017; Zhang et al. 2021), so the thesis calls it "maximal one-sided".
 
 H1 could not be tested with a co-trained adversary (docs/note_h1_attack_effect.md):
 under its cost model the constrained adversary abstains (0.159% of max action), and
@@ -73,6 +78,30 @@ ARMS = {
     "detection_noobs": ("config7_detection_noobs", 7),
 }
 
+# Tier-4 (WS10) arms, outside the v4 prefix scheme: name -> (project, eval yaml).
+# Opt-in by name with --arms; `--arms all` still means the seven v4 arms above.
+EXTRA_ARMS = {
+    "shuffled_noobs":     ("v4_config8_shuffled_noobs",
+                           "config/rl_configs/eval_2024_test_v4_config8.yaml"),
+    "recurrent_baseline": ("v4r_config1_baseline",
+                           "config/rl_configs/eval_2024_test_v4r_config1.yaml"),
+    "recurrent_full":     ("v4r_config3_full",
+                           "config/rl_configs/eval_2024_test_v4r_config3.yaml"),
+}
+# Tier-4 arms whose detection head is trained (shuffled labels still train it).
+EXTRA_HEAD_ARMS = ("shuffled_noobs", "recurrent_full")
+
+
+def resolve_arm(arm: str, pfx: str) -> tuple[str, str]:
+    """(checkpoint project, eval yaml) for a v4 arm or a Tier-4 extra arm."""
+    if arm in EXTRA_ARMS:
+        return EXTRA_ARMS[arm]
+    suffix, n = ARMS[arm]
+    stem = ("eval_2024_test_config%d" % n if pfx == "v3"
+            else "eval_2024_test_%s_config%d" % (pfx, n))
+    return f"{pfx}_{suffix}", "config/rl_configs/%s.yaml" % stem
+
+
 # Same contrast set and orientation as run_evaluation.run_full_evaluation's
 # _CANDIDATES, so analysis/evalreport.py's CONTRAST_LABELS render these blocks.
 CONTRASTS = [
@@ -94,6 +123,28 @@ REPORTED = ("sharpe", "sortino", "cvar", "peak_inventory", "inventory_sd",
             "mean_ask_volume_injected", "qi_absmean", "qi_mean")
 FORCED_ONLY = ("budget_final_frac", "budget_exhausted_frac")
 CONTRAST_METRICS = ("sharpe_forced", "sortino_forced", "cvar_forced")
+
+# Arms whose detection head is TRAINED (use_detection_head=true). The other arms
+# build the same head but never update it, so its output is noise by construction.
+# preregistration.json -> amendments -> robustness_checks_amendment_2026-09-28 (RC3).
+HEAD_ARMS = ("detection", "full", "detection_noobs")
+
+
+def detection_shift_auroc(det_forced, det_off) -> float:
+    """AUROC of the detection head separating forced-attack steps from clean steps.
+
+    Within one condition the oracle label is constant (attack rate 1.0 forced,
+    0.0 off), so rollout_metrics' within-condition AUROC is undefined. Pooling
+    the two conditions of the SAME seed and PRNG key gives the question RC3 asks:
+    does det_prob rise when a maximal one-sided attack is actually present?
+    Step 0 is dropped from both: its det_prob precedes any perturbed observation.
+    """
+    from gymnax_exchange.jaxrl.MARL.adversarial_eval import metrics as M
+    f = np.asarray(det_forced, dtype=np.float64)[1:].ravel()
+    o = np.asarray(det_off, dtype=np.float64)[1:].ravel()
+    probs = np.concatenate([f, o])
+    labels = np.concatenate([np.ones_like(f), np.zeros_like(o)])
+    return M.detection_auroc(probs, labels)
 
 
 def force_action(side: str, n_levels: int):
@@ -138,7 +189,7 @@ def _parse_seeds(spec: str) -> list[int]:
 
 
 def run_rollout_with_override(env, networks, train_states, config, gate, forced,
-                              budget, rng, n_envs, n_steps):
+                              budget, rng, n_envs, n_steps, collect_mm_obs: bool = False):
     """rollout.run_rollout's loop, copied, with two additions.
 
     1. If `forced` is not None, actions[adv_idx] is replaced by it right before
@@ -187,9 +238,17 @@ def run_rollout_with_override(env, networks, train_states, config, gate, forced,
               "regime": [], "quote_disp_ticks": [], "volume_injected": [],
               "bid_volume_injected": [], "ask_volume_injected": [],
               "qi": [], "budget_remaining": []}
+    if collect_mm_obs:
+        # RC4 (check_encoder_rank.py): the raw observation the MM network is fed at
+        # each step, before env.step. Off by default so every existing caller's
+        # output is unchanged.
+        series["obs_mm"] = []
 
     for _ in range(n_steps):
         actions, det_mm = [], None
+        if collect_mm_obs:
+            series["obs_mm"].append(np.asarray(
+                obs_list[mm_idx].reshape((n_envs * nper[mm_idx], -1)), dtype=np.float32))
         for i, ts in enumerate(train_states):
             obs_i = obs_list[i].reshape((n_envs * nper[i], -1))
             ac_in = (obs_i[jnp.newaxis, :], dones[i][jnp.newaxis, :])
@@ -257,19 +316,30 @@ def extra_metrics(arrays: dict, budget: float) -> dict:
     return out
 
 
-def evaluate_arm(arm, project, yaml_path, seeds, side, budget, n_envs, n_steps, step, ppy):
-    """Return {metric_forced / metric_off: np.array over seeds} for one arm."""
+def evaluate_arm(arm, project, yaml_path, seeds, side, budget, n_envs, n_steps, step, ppy,
+                 override: bool = True, on_label: str = "forced"):
+    """Return {metric_<on_label> / metric_off: np.array over seeds} for one arm.
+
+    override=True (default, this script): the attack condition overwrites the
+    adversary's action with the maximal one-sided injection. override=False
+    (eval_learned_attack.py, WS10a): the checkpoint's OWN adversary acts, gated on;
+    on_label names that condition's key suffix so it can never be mistaken for a
+    forced or a co-trained-adversary result.
+    """
     import jax
     from gymnax_exchange.jaxrl.MARL.adversarial_eval.rollout import (
         build_eval, load_merged_config, restore_checkpoint, rollout_metrics, set_attack_mode,
     )
 
     rows = {s: {} for s in seeds}
+    # RC3: the off pass keeps each seed's det_prob so the forced pass can pool them.
+    det_off = {}
+    has_head = arm in HEAD_ARMS or arm in EXTRA_HEAD_ARMS
     # 'off' first, then 'forced': one env per condition (the configs differ), freed
     # before the next is built -- each env holds the period's full message array.
-    for cond in ("off", "forced"):
+    for cond in ("off", on_label):
         cfg = load_merged_config(yaml_path)
-        if cond == "forced":
+        if cond == on_label:
             cfg = set_attack_mode(cfg, "on")
             cfg = set_budget_override(cfg, budget)
         else:
@@ -286,33 +356,42 @@ def evaluate_arm(arm, project, yaml_path, seeds, side, budget, n_envs, n_steps, 
         if env.action_spaces[adv_idx].shape[0] != 2 * n_lv:
             raise SystemExit(f"adversary action dim {env.action_spaces[adv_idx].shape[0]} "
                              f"!= 2 * n_spoof_levels ({2 * n_lv})")
-        if cond == "forced" and float(adv_cfg.budget_per_episode) != float(budget):
+        if cond == on_label and float(adv_cfg.budget_per_episode) != float(budget):
             raise SystemExit("budget override did not reach the built env "
                              f"({adv_cfg.budget_per_episode} != {budget})")
 
-        forced = force_action(side, n_lv) if cond == "forced" else None
-        gate = 1.0 if cond == "forced" else 0.0
+        forced = force_action(side, n_lv) if (cond == on_label and override) else None
+        gate = 1.0 if cond == on_label else 0.0
         steps = int(n_steps) if n_steps is not None else int(cfg["NUM_STEPS"])
 
         for s in seeds:
             ts, used_step = restore_checkpoint(cfg, ts_template, project, f"seed_{s}", step)
             arrays = run_rollout_with_override(
-                env, nets, ts, cfg, gate, forced, budget if cond == "forced" else 0.0,
+                env, nets, ts, cfg, gate, forced, budget if cond == on_label else 0.0,
                 jax.random.PRNGKey(s), n_envs, steps)
             m = rollout_metrics(arrays, ppy)
-            m.update(extra_metrics(arrays, budget if cond == "forced" else 0.0))
+            m.update(extra_metrics(arrays, budget if cond == on_label else 0.0))
             for k in REPORTED:
                 rows[s][f"{k}_{cond}"] = m[k]
-            if cond == "forced":
+            if cond == on_label:
                 for k in FORCED_ONLY:
-                    rows[s][f"{k}_forced"] = m[k]
+                    rows[s][f"{k}_{on_label}"] = m[k]
+            # RC3 detection-under-attack. NaN for arms whose head is never trained.
+            dp = arrays["det_prob"]
+            rows[s][f"det_prob_mean_{cond}"] = (
+                float(np.mean(dp[1:])) if has_head else float("nan"))
+            if cond == "off":
+                det_off[s] = np.array(dp, copy=True) if has_head else None
+            else:
+                rows[s][f"det_auroc_{on_label}_vs_off"] = (
+                    detection_shift_auroc(dp, det_off[s]) if has_head else float("nan"))
             rows[s]["_checkpoint_step"] = used_step
-            print(f"[forced-attack] arm={arm} cond={cond} seed={s} step={used_step} "
+            print(f"[{on_label}-attack] arm={arm} cond={cond} seed={s} step={used_step} "
                   f"sharpe={m['sharpe']:+.3f} attack_rate={m['mean_attack_rate']:.4f} "
                   f"bid_vol={m['mean_bid_volume_injected']:.3g} "
                   f"ask_vol={m['mean_ask_volume_injected']:.3g} "
                   f"|QI|={m['qi_absmean']:.4f}"
-                  + (f" budget_final={m['budget_final_frac']:.3f}" if cond == "forced" else ""),
+                  + (f" budget_final={m['budget_final_frac']:.3f}" if cond == on_label else ""),
                   flush=True)
             del ts, arrays
             gc.collect()
@@ -387,17 +466,12 @@ def main() -> int:
     pfx = args.project_prefix
 
     arms = list(ARMS) if args.arms == "all" else [a.strip() for a in args.arms.split(",")]
-    unknown = [a for a in arms if a not in ARMS]
+    unknown = [a for a in arms if a not in ARMS and a not in EXTRA_ARMS]
     if unknown:
-        raise SystemExit(f"unknown arm(s) {unknown}; choose from {list(ARMS)}")
+        raise SystemExit(f"unknown arm(s) {unknown}; choose from {list(ARMS) + list(EXTRA_ARMS)}")
     seeds = _parse_seeds(args.seeds)
 
-    def _yaml(n: int) -> str:
-        stem = ("eval_2024_test_config%d" % n if pfx == "v3"
-                else "eval_2024_test_%s_config%d" % (pfx, n))
-        return "config/rl_configs/%s.yaml" % stem
-
-    banner = ("*** EXPLORATORY — FORCED WORST-CASE ATTACK (side=%s, budget=%g). Not a "
+    banner = ("*** EXPLORATORY — FORCED MAXIMAL ONE-SIDED ATTACK (side=%s, budget=%g). Not a "
               "co-trained adversary, not the confirmatory result. See "
               "docs/note_forced_attack_amendment.md ***" % (args.side, args.budget_override))
     print(banner)
@@ -405,8 +479,8 @@ def main() -> int:
 
     per_seed = {}
     for arm in arms:
-        suffix, n = ARMS[arm]
-        per_seed[arm] = evaluate_arm(arm, f"{pfx}_{suffix}", _yaml(n), seeds, args.side,
+        project, yaml_path = resolve_arm(arm, pfx)
+        per_seed[arm] = evaluate_arm(arm, project, yaml_path, seeds, args.side,
                                      args.budget_override, args.n_envs, args.n_steps,
                                      step, ppy)
 
@@ -444,7 +518,24 @@ def main() -> int:
             lines.append(f"  {k:<26} forced={np.nanmean(f_):+10.4g}  off={np.nanmean(o_):+10.4g}")
         for k in FORCED_ONLY:
             lines.append(f"  {k:<26} forced={np.nanmean(m[f'{k}_forced']):10.4g}")
+        if arm in HEAD_ARMS or arm in EXTRA_HEAD_ARMS:
+            lines.append(f"  {'det_prob_mean':<26} forced={np.nanmean(m['det_prob_mean_forced']):+10.4g}"
+                         f"  off={np.nanmean(m['det_prob_mean_off']):+10.4g}")
+            lines.append(f"  {'det_auroc_forced_vs_off':<26} mean={np.nanmean(m['det_auroc_forced_vs_off']):10.4g}"
+                         "  (RC3; chance = 0.5)")
     if len(seeds) >= 3:
+        from gymnax_exchange.jaxrl.MARL.adversarial_eval.stats import one_sample_comparison
+        rc3 = {}
+        for arm, m in per_seed.items():
+            if arm in HEAD_ARMS or arm in EXTRA_HEAD_ARMS:
+                rc3[arm] = one_sample_comparison(m["det_auroc_forced_vs_off"], 0.5)
+        if rc3:
+            lines += ["", "=== RC3: detection AUROC, forced vs off, vs chance 0.5 (unadjusted; "
+                      "Holm over arm x side is applied after both sides are run) ==="]
+            for arm, r in rc3.items():
+                lines.append(f"  {arm:<16} n={r.n:<3} mean={r.mean:.4f} d={r.cohens_d:+.3g} "
+                             f"{r.test:<9} p={r.p_value:.3g}")
+            report["rc3_auroc_vs_chance"] = {a: r.as_dict() for a, r in rc3.items()}
         lines += ["", "=== within-arm: forced vs off, paired by seed ==="]
         for arm, m in per_seed.items():
             for k in ("sharpe", "sortino", "cvar"):

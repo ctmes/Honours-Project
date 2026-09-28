@@ -259,6 +259,91 @@ def tost_paired(a, b, margin: float, alpha: float = 0.05) -> TostResult:
                       equivalent=bool(p_value < alpha), alpha=alpha)
 
 
+def _sign_matrix(n: int) -> np.ndarray:
+    """All 2**n sign vectors as an int8 (2**n, n) matrix, cached per n."""
+    cached = _SIGN_CACHE.get(n)
+    if cached is None:
+        k = np.arange(2 ** n, dtype=np.int64)[:, None]
+        bits = (k >> np.arange(n, dtype=np.int64)) & 1
+        cached = (1 - 2 * bits).astype(np.int8)
+        _SIGN_CACHE[n] = cached
+    return cached
+
+
+_SIGN_CACHE: dict = {}
+
+
+def sign_flip_permutation(diffs, alternative: str = "two-sided", n_exact_max: int = 20,
+                          n_mc: int = 200_000, seed: Optional[int] = 0) -> float:
+    """Sign-flip permutation p-value for the MEAN of paired differences.
+
+    Under H0 the differences are symmetric about zero, so every sign pattern is
+    equally likely. Exact over all 2**n patterns when n <= n_exact_max (n=20 is
+    1,048,576 patterns, well under a second); Monte Carlo with the (count+1)/(B+1)
+    correction above that. One estimand (the mean), no normality pre-test --
+    the robustness check RC1 in preregistration.json amendments
+    (robustness_checks_amendment_2026-09-28), motivated by Rochon et al. (2011,
+    2012) on preliminary normality testing.
+
+    alternative: "two-sided" (|mean| as extreme), "greater" (mean >= observed),
+    "less" (mean <= observed). For a non-inferiority test of H0: diff <= -m, pass
+    diffs + m with alternative="greater".
+
+    NaNs are dropped. Returns 1.0 when every difference is exactly zero.
+    """
+    d = np.asarray(diffs, dtype=np.float64).ravel()
+    d = d[np.isfinite(d)]
+    n = d.size
+    if n == 0 or np.all(d == 0.0):
+        return 1.0
+    if alternative not in ("two-sided", "greater", "less"):
+        raise ValueError(f"alternative must be two-sided/greater/less, got {alternative!r}")
+    obs = float(d.sum())
+    tol = 1e-12 * max(1.0, float(np.abs(d).sum()))
+
+    def _count(sums: np.ndarray) -> int:
+        if alternative == "two-sided":
+            return int(np.count_nonzero(np.abs(sums) >= abs(obs) - tol))
+        if alternative == "greater":
+            return int(np.count_nonzero(sums >= obs - tol))
+        return int(np.count_nonzero(sums <= obs + tol))
+
+    if n <= n_exact_max:
+        signs = _sign_matrix(n)
+        count = 0
+        chunk = 1 << 16
+        for start in range(0, signs.shape[0], chunk):
+            count += _count(signs[start:start + chunk].astype(np.float64) @ d)
+        return float(count / signs.shape[0])
+    rng = np.random.default_rng(seed)
+    count = 0
+    remaining = n_mc
+    while remaining > 0:
+        m = min(remaining, 1 << 14)
+        s = rng.choice(np.array([-1.0, 1.0]), size=(m, n))
+        count += _count(s @ d)
+        remaining -= m
+    return float((count + 1) / (n_mc + 1))
+
+
+def bca_ci(diffs, ci: float = 0.95, n_boot: int = 10000,
+           seed: Optional[int] = 0) -> tuple[float, float]:
+    """BCa bootstrap CI for the mean of `diffs` (same estimand as the sign-flip test).
+
+    Percentile intervals under-cover at n ~ 20 (Colas et al. 2019); BCa corrects
+    for bias and skew. Degenerate (constant) input returns (mean, mean).
+    """
+    d = np.asarray(diffs, dtype=np.float64).ravel()
+    d = d[np.isfinite(d)]
+    if d.size < 2:
+        return (float("nan"), float("nan"))
+    if np.ptp(d) == 0.0:
+        return (float(d[0]), float(d[0]))
+    res = stats.bootstrap((d,), np.mean, confidence_level=ci, n_resamples=n_boot,
+                          method="BCa", random_state=np.random.default_rng(seed))
+    return (float(res.confidence_interval.low), float(res.confidence_interval.high))
+
+
 def one_sample_comparison(x, null_value: float, alpha: float = 0.05) -> OneSampleResult:
     """Test a per-seed metric against a fixed null (e.g. detection AUROC vs 0.5).
 

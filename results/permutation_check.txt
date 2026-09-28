@@ -1,0 +1,39 @@
+=== RC1 sign-flip check: results/eval_1179095.json (CONFIRMATORY) ===
+family           n   agree  flip
+  contrasts       32      31     1
+  noninferiority   4       4     0
+  auroc            7       7     0
+  within_arm      18      18     0
+  did             24      24     0
+  verdict changes at alpha=0.05 (pre-registered -> sign-flip):
+    contrasts      full_vs_baseline                 cvar_on          diff=-3.023  p 0.0612 -> 0.0307
+
+=== RC1 sign-flip check: results/eval_17313.json (exploratory) ===
+family           n   agree  flip
+  contrasts       40      40     0
+  noninferiority   4       4     0
+  auroc            8       8     0
+  within_arm      21      21     0
+  did             30      29     1
+  verdict changes at alpha=0.05 (pre-registered -> sign-flip):
+    did            full_vs_baseline                 sortino          diff=+0.0001176  p 0.048 -> 0.0695
+
+=== RC1 sign-flip check: results/forced_attack_v4_bid.json (exploratory) ===
+family           n   agree  flip
+  contrasts       30      30     0
+  within_arm      21      21     0
+  did             30      30     0
+  no verdict changes at alpha=0.05
+
+=== RC1 sign-flip check: results/forced_attack_v4_ask.json (exploratory) ===
+family           n   agree  flip
+  contrasts       30      29     1
+  within_arm      21      19     2
+  did             30      27     3
+  verdict changes at alpha=0.05 (pre-registered -> sign-flip):
+    contrasts      detection_vs_detection_noobs     cvar_forced      diff=+1.745  p 0.116 -> 0.0384
+    within_arm     adversarial                      sortino_forced   diff=+0.002105  p 0.0826 -> 0.0415
+    within_arm     detection_noobs                  cvar_forced      diff=-0.1086  p 0.0312 -> 0.297
+    did            detection_vs_adversarial         sortino          diff=-0.002209  p 0.0637 -> 0.0326
+    did            detection_noobs_vs_adversarial   sortino          diff=-0.002218  p 0.0532 -> 0.0354
+    did            detection_vs_detection_noobs     cvar             diff=+0.1104  p 0.0222 -> 0.305

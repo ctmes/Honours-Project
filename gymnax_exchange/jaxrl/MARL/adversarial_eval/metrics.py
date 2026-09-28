@@ -119,10 +119,19 @@ def sortino_ratio(returns, periods_per_year: float, target: float = 0.0) -> floa
 def cvar(returns, alpha: float = 0.10) -> float:
     """Conditional Value-at-Risk (expected shortfall) at level `alpha`.
 
-    Mean of the worst `alpha` fraction of returns (the most negative tail). Returned
-    as a signed return value: negative means an expected loss in the tail. With ~20
-    seeds the proposal uses alpha=0.10 because the 5th-percentile effective sample is
-    ~1 observation.
+    Mean of the worst `alpha` fraction of returns (the most negative tail;
+    Rockafellar & Uryasev 2000, Acerbi & Tasche 2002). Returned as a signed return
+    value: negative means an expected loss in the tail.
+
+    What it is computed over: rollout_metrics calls this once per env on that env's
+    PER-STEP returns (one episode), then averages over envs, so each tail mean
+    covers ceil(alpha * T) steps of one episode -- tens of steps at T = 512, not a
+    handful of seeds. (The proposal justified alpha = 0.10 by "at 20 seeds the
+    5th-percentile effective sample is 1 observation"; that describes a CVaR over
+    seeds, which is not what is computed here. Corrected 2026-09-28.) alpha = 0.10
+    is kept because it is pre-registered and conventional. It is a per-step tail;
+    the tail of per-EPISODE PnL, the economically natural quantity for a market
+    maker, is not computed and is a stated limitation.
     """
     r = np.sort(_flatten(returns))
     if r.size == 0:
@@ -163,6 +172,49 @@ def inventory_sd(inventory) -> float:
     if inv.size < 2:
         return np.nan
     return float(inv.std(ddof=1))
+
+
+def _feature_singular_values(features) -> np.ndarray:
+    f = np.asarray(features, dtype=np.float64)
+    if f.ndim != 2 or f.shape[0] == 0 or f.shape[1] == 0:
+        raise ValueError(f"features must be a non-empty (N, d) matrix, got shape {f.shape}")
+    return np.linalg.svd(f, compute_uv=False)
+
+
+def effective_rank(features) -> float:
+    """Roy & Vetterli (2007) effective rank of an (N, d) feature matrix.
+
+    exp(H(p)) with p_k = sigma_k / sum(sigma): d for an isotropic representation,
+    1 for a rank-1 one. Computed on the raw (uncentred) features, as in the
+    representation-collapse literature (Kumar et al. 2021; Moalla et al. 2024).
+    An all-zero matrix (every unit dead) returns 0.
+    """
+    s = _feature_singular_values(features)
+    total = s.sum()
+    if total <= 0.0:
+        return 0.0
+    p = s / total
+    p = p[p > 0]
+    return float(np.exp(-np.sum(p * np.log(p))))
+
+
+def srank(features, delta: float = 0.01) -> int:
+    """Kumar et al. (2021) srank: smallest k whose top-k singular values carry
+    at least (1 - delta) of the total singular-value mass. 0 for an all-zero matrix."""
+    s = _feature_singular_values(features)
+    total = s.sum()
+    if total <= 0.0:
+        return 0
+    cum = np.cumsum(s) / total
+    return int(np.searchsorted(cum, 1.0 - delta - 1e-12) + 1)
+
+
+def dead_unit_fraction(features) -> float:
+    """Fraction of feature columns (ReLU units) that are exactly zero on every row."""
+    f = np.asarray(features, dtype=np.float64)
+    if f.ndim != 2 or f.shape[1] == 0:
+        raise ValueError(f"features must be (N, d), got shape {f.shape}")
+    return float(np.mean(np.all(f == 0.0, axis=0)))
 
 
 def detection_auroc(probs, labels) -> float:

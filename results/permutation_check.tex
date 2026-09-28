@@ -1,0 +1,35 @@
+\begin{tabular}{llrrr}
+\toprule
+Source & Family & Tests & Agree & Change \\
+\midrule
+eval\_1179095 & contrasts & 32 & 31 & 1 \\
+eval\_1179095 & noninferiority & 4 & 4 & 0 \\
+eval\_1179095 & auroc & 7 & 7 & 0 \\
+eval\_1179095 & within\_arm & 18 & 18 & 0 \\
+eval\_1179095 & did & 24 & 24 & 0 \\
+\midrule
+eval\_17313 & contrasts & 40 & 40 & 0 \\
+eval\_17313 & noninferiority & 4 & 4 & 0 \\
+eval\_17313 & auroc & 8 & 8 & 0 \\
+eval\_17313 & within\_arm & 21 & 21 & 0 \\
+eval\_17313 & did & 30 & 29 & 1 \\
+\midrule
+forced\_attack\_v4\_bid & contrasts & 30 & 30 & 0 \\
+forced\_attack\_v4\_bid & within\_arm & 21 & 21 & 0 \\
+forced\_attack\_v4\_bid & did & 30 & 30 & 0 \\
+\midrule
+forced\_attack\_v4\_ask & contrasts & 30 & 29 & 1 \\
+forced\_attack\_v4\_ask & within\_arm & 21 & 19 & 2 \\
+forced\_attack\_v4\_ask & did & 30 & 27 & 3 \\
+\bottomrule
+\end{tabular}
+
+% Verdict changes (pre-registered p -> sign-flip p):
+% eval_1179095.json contrasts full_vs_baseline cvar_on: 0.0612 -> 0.0307
+% eval_17313.json did full_vs_baseline sortino: 0.048 -> 0.0695
+% forced_attack_v4_ask.json contrasts detection_vs_detection_noobs cvar_forced: 0.116 -> 0.0384
+% forced_attack_v4_ask.json within_arm adversarial sortino_forced: 0.0826 -> 0.0415
+% forced_attack_v4_ask.json within_arm detection_noobs cvar_forced: 0.0312 -> 0.297
+% forced_attack_v4_ask.json did detection_vs_adversarial sortino: 0.0637 -> 0.0326
+% forced_attack_v4_ask.json did detection_noobs_vs_adversarial sortino: 0.0532 -> 0.0354
+% forced_attack_v4_ask.json did detection_vs_detection_noobs cvar: 0.0222 -> 0.305

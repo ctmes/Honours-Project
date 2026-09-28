@@ -1,0 +1,47 @@
+{
+  "n_days": 252,
+  "n_test_days": 64,
+  "committed_test_high_frac": 0.609375,
+  "thresholds": {
+    "full_year_median": 0.01707888062182932,
+    "train_only_median": 0.016051158926816984
+  },
+  "variants": {
+    "lag": {
+      "changed_all_year": 15,
+      "changed_test": 4,
+      "changed_test_frac": 0.0625,
+      "test_high_frac": 0.609375,
+      "changed_test_dates": [
+        "2024-10-01",
+        "2024-11-01",
+        "2024-12-16",
+        "2024-12-18"
+      ]
+    },
+    "train_thr": {
+      "changed_all_year": 9,
+      "changed_test": 2,
+      "changed_test_frac": 0.03125,
+      "test_high_frac": 0.640625,
+      "changed_test_dates": [
+        "2024-10-01",
+        "2024-10-02"
+      ]
+    },
+    "point_in_time": {
+      "changed_all_year": 49,
+      "changed_test": 6,
+      "changed_test_frac": 0.09375,
+      "test_high_frac": 0.640625,
+      "changed_test_dates": [
+        "2024-10-01",
+        "2024-10-02",
+        "2024-10-03",
+        "2024-11-01",
+        "2024-12-16",
+        "2024-12-18"
+      ]
+    }
+  }
+}

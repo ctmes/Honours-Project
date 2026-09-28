@@ -107,3 +107,61 @@ def test_quarter_maps_partition_the_training_pool():
     assert union == train_dates, (
         f"quarters do not exactly cover the training pool: "
         f"missing={sorted(train_dates - union)} extra={sorted(union - train_dates)}")
+
+
+# ---------------------------------------------------------------------------
+# Point-in-time labelling (literature audit 2026-09-28 sec 3.13)
+# ---------------------------------------------------------------------------
+
+CSV = os.path.join(ROOT, "regime_labels.csv")
+
+
+def test_default_rule_reproduces_committed_labels():
+    import pandas as pd
+    from build_regime_labels import label_regimes
+    if not os.path.exists(CSV):
+        pytest.skip("regime_labels.csv not present")
+    df = pd.read_csv(CSV)
+    new = label_regimes(df[["date", "close"]])
+    assert (new["regime"].to_numpy() == df["regime"].to_numpy()).all()
+
+
+def test_point_in_time_label_ignores_today_and_future_closes():
+    import numpy as np
+    import pandas as pd
+    from build_regime_labels import label_regimes
+    rng = np.random.default_rng(0)
+    n = 120
+    close = 100 * np.exp(np.cumsum(rng.normal(0, 0.02, n)))
+    dates = pd.date_range("2024-01-02", periods=n, freq="B").strftime("%Y-%m-%d")
+    df = pd.DataFrame({"date": dates, "close": close})
+    base = label_regimes(df, point_in_time=True)["regime"].to_numpy()
+    for t in (45, 70, 100):
+        shocked = df.copy()
+        shocked.loc[t:, "close"] = shocked.loc[t:, "close"] * np.exp(
+            rng.normal(0, 0.2, n - t).cumsum())
+        got = label_regimes(shocked, point_in_time=True)["regime"].to_numpy()
+        # day t's label uses closes through t-1 only
+        assert (got[: t + 1] == base[: t + 1]).all(), f"label at/before {t} moved"
+    # the default rule DOES move day t's label on a same-day shock somewhere
+    moved = False
+    for t in range(30, n):
+        shocked = df.copy()
+        shocked.loc[t, "close"] *= 1.5
+        if label_regimes(shocked)["regime"].to_numpy()[t] != label_regimes(df)["regime"].to_numpy()[t]:
+            moved = True
+            break
+    assert moved, "expected the default (same-day) rule to be sensitive to day t's close"
+
+
+def test_leak_summary_is_small_on_the_test_period():
+    import pandas as pd
+    from analysis.regime_label_leak import leak_summary
+    if not os.path.exists(CSV):
+        pytest.skip("regime_labels.csv not present")
+    res = leak_summary(pd.read_csv(CSV))
+    assert res["n_test_days"] == 64
+    # the numbers quoted in the thesis limitations
+    assert res["variants"]["lag"]["changed_test"] == 4
+    assert res["variants"]["train_thr"]["changed_test"] == 2
+    assert res["variants"]["point_in_time"]["changed_test"] == 6

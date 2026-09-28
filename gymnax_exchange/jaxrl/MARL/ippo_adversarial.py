@@ -53,7 +53,7 @@ from gymnax_exchange.jaxob.jaxob_config import (
     AdversarialMMConfig,
 )
 from gymnax_exchange.jaxen.adversarial_marl_env import AdversarialMARLEnv
-from gymnax_exchange.jaxrl.MARL.attack_aware_policy import AttackAwarePolicyNet, AdversaryNet
+from gymnax_exchange.jaxrl.MARL.attack_aware_policy import AttackAwarePolicyNet, AdversaryNet, make_mm_network
 from gymnax_exchange.jaxrl.MARL.pcgrad import pcgrad_merge
 
 
@@ -172,6 +172,41 @@ def create_agent_configs(config: dict) -> dict:
 # Main make_train
 # ---------------------------------------------------------------------------
 
+def load_mm_params(mm_train_state, spec: str, mm_index: int, config: dict):
+    """Replace a TrainState's params with the MM params saved in another run.
+
+    spec: "PROJECT/RUN@STEP" or "PROJECT/RUN" (latest step), with "{SEED}"
+    substituted, under <alphatradePath>/checkpoints/MARLCheckpoints. The source
+    run's ADVERSARY may have a different shape (e.g. a 43-dim observation where
+    this run's adversary sees 88), so the checkpoint is restored WITHOUT a target
+    and only the MM params are taken. Those must match this run's MM template in
+    tree structure and every leaf shape, or this raises.
+    """
+    src, _, step = str(spec).format(SEED=config["SEED"]).partition("@")
+    ckpt_dir = f'{config["world_config"]["alphatradePath"]}/checkpoints/MARLCheckpoints/{src}'
+    mgr = oxcp.CheckpointManager(ckpt_dir, oxcp.PyTreeCheckpointer())
+    step = int(step) if step else mgr.latest_step()
+    if step is None:
+        raise FileNotFoundError(f"MM_INIT_FROM: no checkpoint under {ckpt_dir}")
+    raw = mgr.restore(step)
+    model = raw["model"]
+    mm_raw = model[mm_index] if isinstance(model, (list, tuple)) else model[str(mm_index)]
+    tmpl = mm_train_state.params
+    src_params = mm_raw["params"]
+    if jax.tree_util.tree_structure(tmpl) != jax.tree_util.tree_structure(src_params):
+        raise ValueError(f"MM_INIT_FROM {spec}: parameter tree differs from this run's MM")
+    bad = [(tuple(a.shape), tuple(np.shape(b)))
+           for a, b in zip(jax.tree.leaves(tmpl), jax.tree.leaves(src_params))
+           if tuple(a.shape) != tuple(np.shape(b))]
+    if bad:
+        raise ValueError(f"MM_INIT_FROM {spec}: shape mismatch {bad[:3]}")
+    loaded = jax.tree.map(lambda t, r: jnp.asarray(r, dtype=t.dtype), tmpl, src_params)
+    checksum = float(sum(jnp.sum(jnp.abs(x)) for x in jax.tree.leaves(loaded)))
+    print(f"MM_INIT_FROM: loaded MM params from {ckpt_dir} step {step} "
+          f"(|params| checksum {checksum:.6g})", flush=True)
+    return mm_train_state.replace(params=loaded)
+
+
 def make_train(config: dict):
     init_key = jax.random.PRNGKey(config["SEED"])
     agent_configs = create_agent_configs(config)
@@ -227,6 +262,26 @@ def make_train(config: dict):
     # (The matching obs channels are zeroed in get_adversarial_observation.)
     use_det      = bool(getattr(env.list_of_agents_configs[mm_idx], "use_detection_head", True))
 
+    # ---- Tier-4 experiment switches (docs/plan_literature_fixes_2026-09-28.md WS10).
+    # All default OFF: an existing config trains exactly as before.
+    #   FREEZE_MM            never update the MM (every update is an adversary update)
+    #                        and let it act deterministically (pi.mode()), as it does at
+    #                        evaluation -- the learned optimal attack on a FIXED victim
+    #                        (Zhang et al. 2021, ATLA). Requires MM_INIT_FROM.
+    #   MM_INIT_FROM         "PROJECT/RUN@STEP" (RUN may contain {SEED}); on a fresh
+    #                        start, load the MM params from that checkpoint.
+    #   DETECTION_LABEL_MODE "oracle" (default) or "shuffled": permute the MM oracle
+    #                        labels across (time x actors) each update, keeping the base
+    #                        rate but destroying the obs-label relation (random-label
+    #                        control for the auxiliary-loss finding; Zheng et al. 2021).
+    freeze_mm    = bool(config.get("FREEZE_MM", False))
+    mm_init_from = config.get("MM_INIT_FROM") or None
+    label_mode   = str(config.get("DETECTION_LABEL_MODE", "oracle"))
+    if label_mode not in ("oracle", "shuffled"):
+        raise ValueError(f"DETECTION_LABEL_MODE must be oracle|shuffled, got {label_mode!r}")
+    if freeze_mm and not mm_init_from:
+        raise ValueError("FREEZE_MM without MM_INIT_FROM would attack an untrained MM")
+
     def linear_schedule(lr, count):
         # Each agent's optax step count only advances on the updates where it is
         # unfrozen — under alternating freezes that is ~half of NUM_UPDATES — so the
@@ -255,7 +310,7 @@ def make_train(config: dict):
             act_space = env.action_spaces[i]
 
             if isinstance(cfg_i, AdversarialMMConfig):
-                net = AttackAwarePolicyNet(action_dim=act_space.n, config=config)
+                net = make_mm_network(act_space.n, config)
             elif isinstance(cfg_i, SpoofingAgentConfig):
                 net = AdversaryNet(action_dim=act_space.shape[0], config=config)
             else:
@@ -347,7 +402,10 @@ def make_train(config: dict):
                 values.append(value)
                 det_probs.append(det_prob)
 
-                action = pi.sample(seed=agent_keys[i])
+                if freeze_mm and i == mm_idx:
+                    action = pi.mode()   # frozen victim acts as it does at evaluation
+                else:
+                    action = pi.sample(seed=agent_keys[i])
                 log_probs.append(pi.log_prob(action))
                 action = unbatchify(
                     action, config["NUM_ENVS"],
@@ -449,7 +507,8 @@ def make_train(config: dict):
             return advantages, advantages + traj_batch.value
 
         # ---- MM update: PCGrad PPO + BCE -----------------------------------
-        def _update_mm(train_state, traj_batch_mm, advantages_mm, targets_mm, rng_update):
+        def _update_mm(train_state, traj_batch_mm, advantages_mm, targets_mm, rng_update,
+                       init_hstate_mm):
             def _update_epoch(update_state, unused):
                 def _update_minibatch(ts, batch_info):
                     init_hstate, traj, adv, tgt = batch_info
@@ -541,7 +600,10 @@ def make_train(config: dict):
 
             update_state = (
                 train_state,
-                jnp.zeros((config["NUM_ACTORS_PERTYPE"][mm_idx], config["GRU_HIDDEN_DIM"])),
+                # The rollout's initial MM carry. The memoryless MLP ignores it (so this
+                # equals the previous zeros); a recurrent MM (MM_RECURRENT) needs the
+                # true carry to replay its sequences.
+                init_hstate_mm,
                 traj_batch_mm,
                 advantages_mm,
                 targets_mm,
@@ -702,6 +764,12 @@ def make_train(config: dict):
         # ---- Resume from checkpoint if one exists --------------------------
         start_update_i = 0
         latest_step = checkpoint_manager.latest_step()
+
+        # ---- WS10a: initialise the MM from a trained checkpoint (fresh start only;
+        # a resume restores this run's own MM below) -----------------------------
+        if mm_init_from and latest_step is None:
+            train_states[mm_idx] = load_mm_params(train_states[mm_idx], mm_init_from,
+                                                  mm_idx, config)
         if latest_step is not None and latest_step < config["NUM_UPDATES"]:
             print(f"Resuming from checkpoint: update {latest_step}/{config['NUM_UPDATES']}")
             # Restore target must match the saved structure, otherwise orbax rejects
@@ -761,7 +829,7 @@ def make_train(config: dict):
         )
 
         for update_i in range(start_update_i, config["NUM_UPDATES"]):
-            phase = (update_i // freeze_n) % 2   # 0 = update adv, 1 = update MM
+            phase = 0 if freeze_mm else (update_i // freeze_n) % 2   # 0 = update adv, 1 = update MM
             print(f"Update {update_i + 1}/{config['NUM_UPDATES']}  phase={'adv' if phase==0 else 'mm'}")
 
             # Collect trajectories (both agents act)
@@ -817,12 +885,22 @@ def make_train(config: dict):
                 loss_mm = None
             else:
                 # Update MM
+                traj_mm = traj_batch[mm_idx]
+                if label_mode == "shuffled":
+                    lab = traj_mm.adv_label
+                    perm_key = jax.random.fold_in(
+                        jax.random.PRNGKey(int(config["SEED"]) + 7919), update_i)
+                    flat = jnp.reshape(lab, (-1,))
+                    traj_mm = traj_mm._replace(adv_label=jnp.reshape(
+                        flat[jax.random.permutation(perm_key, flat.shape[0])], lab.shape))
                 new_ts_mm, loss_mm = jitted_update_mm(
                     train_states_curr[mm_idx],
-                    traj_batch[mm_idx],
+                    traj_mm,
                     advantages[mm_idx],
                     targets[mm_idx],
                     rng_update,
+                    jnp.asarray(initial_hstates[mm_idx], dtype=jnp.float32).reshape(
+                        (config["NUM_ACTORS_PERTYPE"][mm_idx], -1)),
                 )
                 train_states_curr = list(train_states_curr)
                 train_states_curr[mm_idx] = new_ts_mm

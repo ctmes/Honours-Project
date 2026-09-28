@@ -332,8 +332,11 @@ class SpoofingAgent:
         return spaces.Box(0.0, 1.0, (n,), dtype=jnp.float32)
 
     def observation_space(self):
-        # 40 L2 features + 3 scalars (budget_norm, best_bid_norm, best_ask_norm)
-        return spaces.Box(-1000.0, 1000.0, (43,), dtype=jnp.float32)
+        # 40 L2 features + 3 scalars (budget_norm, best_bid_norm, best_ask_norm);
+        # with observe_victim the MM's own observation is appended by
+        # AdversarialMARLEnv (WS10a), so the space grows by victim_obs_dim.
+        n = 43 + (int(self.cfg.victim_obs_dim) if getattr(self.cfg, "observe_victim", False) else 0)
+        return spaces.Box(-1000.0, 1000.0, (n,), dtype=jnp.float32)
 
     def is_terminal(self, world_state: WorldState) -> bool:
         return False

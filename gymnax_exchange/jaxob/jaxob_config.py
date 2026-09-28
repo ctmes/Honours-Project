@@ -243,6 +243,13 @@ class SpoofingAgentConfig:
     # counts (legacy behaviour); a small positive value stops epsilon-volume injections
     # from polluting the detection labels / reported AUROC.
     label_materiality_frac: float = 0.0
+    # WS10a (learned optimal attack on a FROZEN market maker): append the market
+    # maker's own 45-dim observation to the adversary's observation, so the attacker
+    # conditions on the victim's state (inventory, time, queue imbalance, ...), as the
+    # optimal state adversary of Zhang et al. (2021, ATLA) does. Default False keeps
+    # every existing config and checkpoint (43-dim adversary obs) unchanged.
+    observe_victim: bool = False
+    victim_obs_dim: int = 45
 
     # Zero LOB participation
     num_messages_by_agent: int = 0

@@ -12,6 +12,8 @@ The `hidden` argument is accepted and returned as a pass-through (compatible wit
 ScannedRNN interface) but never updated — these are stateless MLPs.
 """
 
+import functools
+
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
@@ -90,6 +92,65 @@ class AttackAwarePolicyNet(nn.Module):
     @staticmethod
     def initialize_carry(batch_size, hidden_size):
         return jnp.zeros((batch_size, hidden_size))
+
+
+class _ScannedGRU(nn.Module):
+    """GRU scanned over the leading (time) axis, reset to zeros where done."""
+
+    @functools.partial(
+        nn.scan,
+        variable_broadcast="params",
+        in_axes=0,
+        out_axes=0,
+        split_rngs={"params": False},
+    )
+    @nn.compact
+    def __call__(self, carry, x):
+        ins, resets = x
+        carry = jnp.where(resets[:, jnp.newaxis], jnp.zeros_like(carry), carry)
+        new_carry, y = nn.GRUCell(features=carry.shape[-1])(carry, ins)
+        return new_carry, y
+
+
+class AttackAwareRecurrentNet(nn.Module):
+    """
+    Recurrent variant of AttackAwarePolicyNet (WS10c, MM_RECURRENT=true).
+
+    SharedEncoder -> GRU (memory over the episode) -> PolicyHead. The
+    DetectionHead stays on the feed-forward encoder output, so the encoder --
+    the object of the RC4 rank analysis -- is identical in structure to the
+    memoryless network and only the policy path gains memory. Motivation:
+    history-conditioned policies are more robust to observation attacks
+    (Zhang et al. 2021, ATLA); the v1-v4 market maker is memoryless.
+
+    Carry: (batch, GRU_HIDDEN_DIM), zeroed where `dones` is true.
+    """
+    action_dim: int
+    config: Dict
+
+    @nn.compact
+    def __call__(self, hidden, x):
+        obs, dones = x
+        encoded = SharedEncoder()(obs)
+        hidden, memory = _ScannedGRU()(hidden, (encoded, dones))
+        pi, value = PolicyHead(self.action_dim)(memory)
+        detection_prob = DetectionHead()(encoded)
+        return hidden, pi, value, detection_prob
+
+    @staticmethod
+    def initialize_carry(batch_size, hidden_size):
+        return jnp.zeros((batch_size, hidden_size))
+
+
+def make_mm_network(action_dim: int, config: Dict) -> nn.Module:
+    """MM network for this config: recurrent iff config["MM_RECURRENT"] is true.
+
+    Used by both the training loop and the eval harness so a recurrent
+    checkpoint is always restored into a recurrent template.
+    """
+    if bool((config or {}).get("MM_RECURRENT", False)):
+        return AttackAwareRecurrentNet(action_dim=action_dim, config=config)
+    return AttackAwarePolicyNet(action_dim=action_dim, config=config)
 
 
 # ---------------------------------------------------------------------------

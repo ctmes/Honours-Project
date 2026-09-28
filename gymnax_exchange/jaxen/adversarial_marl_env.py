@@ -70,6 +70,14 @@ class AdversarialMARLEnv(MARLEnv):
         assert self._mm_idx is not None, "AdversarialMMConfig agent not found in multi_agent_config"
         assert self._adv_idx is not None, "SpoofingAgentConfig agent not found in multi_agent_config"
 
+        # WS10a: the adversary may observe the victim's (MM's) observation.
+        adv_cfg0 = self.list_of_agents_configs[self._adv_idx]
+        self._observe_victim = bool(getattr(adv_cfg0, "observe_victim", False))
+        if self._observe_victim:
+            n_per = self.multi_agent_config.number_of_agents_per_type
+            assert int(n_per[self._adv_idx]) == 1 and int(n_per[self._mm_idx]) == 1, (
+                "observe_victim pairs one adversary with one market maker")
+
         # Build static regime array: shape (n_windows,) float32
         self._regime_array = self._build_regime_array(
             regime_labels, window_to_date
@@ -182,6 +190,8 @@ class AdversarialMARLEnv(MARLEnv):
 
         new_mm_obs = vmap(build_mm_obs_single)(new_mm_state, mm_agent_param)
         obs_list[self._mm_idx] = new_mm_obs
+        if self._observe_victim:
+            obs_list[self._adv_idx] = self._with_victim_obs(obs_list[self._adv_idx], new_mm_obs)
 
         # ---- Correct adversary reward: add -r_mm component ----
         mm_reward = reward_list[self._mm_idx]  # shape (n_mm_agents,)
@@ -265,8 +275,19 @@ class AdversarialMARLEnv(MARLEnv):
 
         new_mm_obs = vmap(build_mm_obs_single)(new_mm_state, mm_agent_param)
         obs_list[self._mm_idx] = new_mm_obs
+        if self._observe_victim:
+            obs_list[self._adv_idx] = self._with_victim_obs(obs_list[self._adv_idx], new_mm_obs)
 
         return obs_list, state
+
+    @staticmethod
+    def _with_victim_obs(adv_obs, mm_obs):
+        """Append the MM's observation to the adversary's (WS10a, observe_victim).
+
+        Both carry a leading agent axis of size 1 (asserted in __init__)."""
+        adv = jnp.reshape(adv_obs, (1, -1))
+        mm = jnp.reshape(mm_obs, (1, -1)).astype(adv.dtype)
+        return jnp.reshape(jnp.concatenate([adv, mm], axis=-1), adv_obs.shape[:-1] + (-1,))
 
     # ------------------------------------------------------------------
     # Helper: load regime labels from JSON (called before creating env)

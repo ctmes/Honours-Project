@@ -43,7 +43,7 @@ from gymnax_exchange.jaxob.jaxob_config import (
     SpoofingAgentConfig, AdversarialMMConfig,
 )
 from gymnax_exchange.jaxen.adversarial_marl_env import AdversarialMARLEnv
-from gymnax_exchange.jaxrl.MARL.attack_aware_policy import AttackAwarePolicyNet, AdversaryNet
+from gymnax_exchange.jaxrl.MARL.attack_aware_policy import AttackAwarePolicyNet, AdversaryNet, make_mm_network
 
 from gymnax_exchange.jaxrl.MARL.adversarial_eval import metrics as M
 
@@ -132,7 +132,7 @@ def build_eval(config: dict, n_envs: int):
         cfg_i = env.list_of_agents_configs[i]
         act_space = env.action_spaces[i]
         if isinstance(cfg_i, AdversarialMMConfig):
-            net = AttackAwarePolicyNet(action_dim=act_space.n, config=config)
+            net = make_mm_network(act_space.n, config)
         elif isinstance(cfg_i, SpoofingAgentConfig):
             net = AdversaryNet(action_dim=act_space.shape[0], config=config)
         else:

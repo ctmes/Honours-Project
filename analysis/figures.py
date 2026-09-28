@@ -342,7 +342,7 @@ def fig_attack_delivery(report: EvalReport, cut: float = COLLAPSE_CUT):
     ax3.axhline(0.0, color=RULE, lw=1.0, ls="-")
     ax3.axvline(cut, color="#B34700", ls=":", lw=1.2)
     ax3.set_xlabel("Quote presence (attack on)")
-    ax3.set_ylabel("Sortino(attack on) - Sortino(attack off)")
+    ax3.set_ylabel("Sortino(attack on) - Sortino(attack off)" + _RATIO_UNITS)
     ax3.set_title("(c) Response to the attack vs presence", loc="left")
     ax3.grid()
     ax3.set_axisbelow(True)
@@ -601,7 +601,7 @@ def fig_equivalence(report: EvalReport):
         [f"{comp.replace('_vs_', ' vs ')}\n{metric_label(metric)}"
          for comp, metric, _ in reversed(rows)], fontsize=8)
     ax.set_ylim(-0.7, len(rows) - 0.3)
-    ax.set_xlabel("Mean paired difference on clean (attack-off) data")
+    ax.set_xlabel("Mean paired difference on clean (attack-off) data" + _RATIO_UNITS)
     ax.grid(axis="x")
     ax.set_axisbelow(True)
 
@@ -710,7 +710,7 @@ def fig_regime(report: EvalReport, cut: float = COLLAPSE_CUT):
     ax1.set_yticklabels([ARM_LABELS.get(a, a) for _, a in _arm_rows(report, arms)])
     ax1.set_ylim(-0.6, len(arms) - 0.4 + 0.95)   # headroom for the legend
     ax1.axvline(0.0, color=RULE, lw=1.0)
-    ax1.set_xlabel("Sortino ratio, attack on")
+    ax1.set_xlabel("Sortino ratio, attack on" + _RATIO_UNITS)
     ax1.set_title("(a) Per seed, by volatility regime", loc="left")
     ax1.grid(axis="x")
     ax1.set_axisbelow(True)
@@ -723,7 +723,7 @@ def fig_regime(report: EvalReport, cut: float = COLLAPSE_CUT):
 
     _strip_by_arm(ax2, report, "regime_gap_on", arms, cut=cut, seed=72,
                   headroom=0.95)
-    ax2.set_xlabel("Regime gap  |Sortino_high - Sortino_low|  (lower = less regime-sensitive)")
+    ax2.set_xlabel("Regime gap  |Sortino_high - Sortino_low|" + _RATIO_UNITS + "  (lower = less regime-sensitive)")
     ax2.set_title("(b) Regime gap", loc="left")
     _collapse_legend(ax2, loc="upper right")
 
@@ -942,6 +942,9 @@ def build(report: EvalReport, outdir: str, only: Sequence[str] | None = None,
     return written
 
 
+# Set by main(); annualised is the stored unit, so library callers keep that label.
+_RATIO_UNITS = " (annualised)"
+
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -956,9 +959,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--auto-liquidate-threshold", type=float, default=None,
                     help="draw the env's auto_liquidate_threshold on the "
                          "inventory figure (50 for the v3 arms)")
+    ap.add_argument("--units", default="per-step", choices=["per-step", "annualised"],
+                    help="Sharpe/Sortino units (default per-step; see analysis/units.py, RC2)")
     args = ap.parse_args(argv)
 
-    report = EvalReport.load(args.report)
+    import json
+    import os
+    from analysis.units import rescale_report
+    global _RATIO_UNITS
+    _RATIO_UNITS = " (per step)" if args.units == "per-step" else " (annualised)"
+    with open(args.report) as fh:
+        report = EvalReport(rescale_report(json.load(fh), args.units),
+                            source=os.path.basename(args.report))
     print(report.describe())
     print()
     if not report.is_confirmatory:

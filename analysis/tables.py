@@ -403,6 +403,23 @@ TABLES = {
 }
 
 
+# Tables that print Sharpe/Sortino values and therefore need a units statement.
+_RATIO_TABLES = ("summary", "contrasts", "equivalence", "gate")
+
+
+def _units_note(report: EvalReport) -> str:
+    """One sentence stating the Sharpe/Sortino units of this rendering (RC2)."""
+    ppy = float(report.meta.get("periods_per_year") or 0.0)
+    if report.meta.get("units") == "per-step" and ppy > 0:
+        return (f"Sharpe and Sortino are per-step ratios; the annualised values in the "
+                f"appendix are these times sqrt({ppy:,.0f}) = {ppy ** 0.5:,.1f}, a "
+                f"scaling valid only for IID returns (Lo 2002). p-values, effect sizes "
+                f"and verdicts are identical in both units.")
+    return (f"Sharpe and Sortino are annualised by sqrt({ppy:,.0f}) per-step periods per "
+            f"year; the sqrt(q) rule assumes IID returns (Lo 2002), so magnitudes are "
+            f"not comparable to conventional annual Sharpe ratios.")
+
+
 def build(report: EvalReport, outdir: str | None, only: Sequence[str] | None = None,
           to_stdout: bool = False, prefix: str = "") -> list[str]:
     names = list(only) if only else list(TABLES)
@@ -417,6 +434,8 @@ def build(report: EvalReport, outdir: str | None, only: Sequence[str] | None = N
         if tbl is None:
             print(f"  [skip] {name:12s} inputs absent from this report ({desc})")
             continue
+        if name in _RATIO_TABLES:
+            tbl.note = ((tbl.note + " ") if tbl.note else "") + _units_note(report)
         if to_stdout:
             print()
             print(tbl.to_text())
@@ -427,6 +446,16 @@ def build(report: EvalReport, outdir: str | None, only: Sequence[str] | None = N
             written.append(path)
             print(f"  [ok]   {name:12s} {desc}")
     return written
+
+
+def _load_in_units(path: str, units: str) -> EvalReport:
+    """EvalReport with Sharpe-family values converted to `units` (analysis/units.py)."""
+    import json
+    import os
+    from analysis.units import rescale_report
+    with open(path) as fh:
+        raw = json.load(fh)
+    return EvalReport(rescale_report(raw, units), source=os.path.basename(path))
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -441,11 +470,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--stdout", action="store_true",
                     help="also print a plain-text rendering")
     ap.add_argument("--prefix", default="")
+    ap.add_argument("--units", default="per-step", choices=["per-step", "annualised"],
+                    help="Sharpe/Sortino units (default per-step; see analysis/units.py, RC2)")
     args = ap.parse_args(argv)
 
     if not args.outdir and not args.stdout:
         args.stdout = True
-    report = EvalReport.load(args.report)
+    report = _load_in_units(args.report, args.units)
     print(report.describe())
     print()
     only = args.only.split(",") if args.only else None

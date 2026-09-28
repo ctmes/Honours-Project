@@ -180,6 +180,21 @@ def main():
                                 run_names=run_names, yaml_path=_eval_yaml(7),
                                 n_envs=args.n_envs, periods_per_year=ppy, step=step,
                                 seeds=list(range(len(run_names))), **adv_kw),
+        # TIER-4 (WS10) - EXPLORATORY, opt-in by name, only meaningful with
+        # --project-prefix v4 (they face the v4 common adversary). Their projects sit
+        # outside the prefix scheme; see make_tier4_configs.py.
+        "shuffled_noobs": dict(project="v4_config8_shuffled_noobs", run_names=run_names,
+                               yaml_path="config/rl_configs/eval_2024_test_v4_config8.yaml",
+                               n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                               seeds=list(range(len(run_names))), **adv_kw),
+        "recurrent_baseline": dict(project="v4r_config1_baseline", run_names=run_names,
+                                   yaml_path="config/rl_configs/eval_2024_test_v4r_config1.yaml",
+                                   n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                                   seeds=list(range(len(run_names))), **adv_kw),
+        "recurrent_full": dict(project="v4r_config3_full", run_names=run_names,
+                               yaml_path="config/rl_configs/eval_2024_test_v4r_config3.yaml",
+                               n_envs=args.n_envs, periods_per_year=ppy, step=step,
+                               seeds=list(range(len(run_names))), **adv_kw),
         "as": dict(fixed_policy=True, n_seeds=len(run_names),
                    yaml_path="config/rl_configs/eval_2024_test_as.yaml",
                    n_envs=args.n_envs, periods_per_year=ppy,

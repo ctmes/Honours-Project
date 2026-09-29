@@ -1,6 +1,6 @@
 """LaTeX + plain-text results tables from an eval_*.json report.
 
-    python -m analysis.tables D:/tmp/runs/results/eval_1151370.json -o tables/
+    python -m analysis.tables D:/tmp/runs/results/eval_1151370.json -o report/tables/
     python -m analysis.tables results/eval_v3.json --only contrasts --stdout
 
 Emitted tables mirror the figures one-for-one, so the results chapter can quote a

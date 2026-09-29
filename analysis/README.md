@@ -11,15 +11,15 @@ The v3 reports have the same schema, so this should run unchanged the moment the
 
 ```bash
 # everything, PNG for reading + PDF for \includegraphics
-python -m analysis.figures results/eval_1151370.json -o figures/ \
+python -m analysis.figures results/eval_1151370.json -o report/figures/ \
     --format png,pdf --auto-liquidate-threshold 50
 
 # LaTeX tables (omit -o and it prints a plain-text version instead)
-python -m analysis.tables results/eval_1151370.json -o tables/
+python -m analysis.tables results/eval_1151370.json -o report/tables/
 python -m analysis.tables results/eval_1151370.json --only contrasts --stdout
 
 # one figure while iterating
-python -m analysis.figures results/eval_v3.json -o figures/ --only validity
+python -m analysis.figures results/eval_v3.json -o report/figures/ --only validity
 ```
 
 `--prefix v3_` namespaces the output when comparing two runs side by side.
@@ -89,9 +89,9 @@ bold or highlight a headless arm for that reason.
 ## When the v3 JSON lands
 
 ```bash
-python -m analysis.figures results/eval_<jobid>.json -o figures/v3 \
+python -m analysis.figures results/eval_<jobid>.json -o report/figures/v3 \
     --format png,pdf --prefix v3_ --auto-liquidate-threshold 50
-python -m analysis.tables  results/eval_<jobid>.json -o tables/v3 --prefix v3_
+python -m analysis.tables  results/eval_<jobid>.json -o report/tables/v3 --prefix v3_
 ```
 
 Read figure 1 and figure 9 first, in that order. Figure 1 says whether the arms

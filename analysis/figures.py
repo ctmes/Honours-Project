@@ -1,7 +1,7 @@
 """Thesis figures from an eval_*.json report.
 
-    python -m analysis.figures D:/tmp/runs/results/eval_1151370.json -o figures/
-    python -m analysis.figures results/eval_v3.json -o figures/ --only validity,forest
+    python -m analysis.figures D:/tmp/runs/results/eval_1151370.json -o report/figures/
+    python -m analysis.figures results/eval_v3.json -o report/figures/ --only validity,forest
 
 Design rules that are not negotiable here, because the v2 data breaks the usual
 defaults:
@@ -950,7 +950,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("report", help="eval_*.json written by run_evaluation.py")
-    ap.add_argument("-o", "--outdir", default="figures")
+    ap.add_argument("-o", "--outdir", default="report/figures")
     ap.add_argument("--only", default=None,
                     help="comma-separated subset: " + ", ".join(FIGURES))
     ap.add_argument("--format", default="png",

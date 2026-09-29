@@ -320,5 +320,5 @@ In v3 the head raises inventory activity but not risk-adjusted performance. The
 claim in `critical_review_2026-09-26.md` that head arms sit at inventory SD 1.75–2.0
 against 0.94–1.09 "in both v3 and v4" holds for v4 only: in v3 every arm is between
 2.11 and 2.53. Thesis wording: "a large effect in the exploratory v4 study with a
-weak analogue in v3" (`thesis_drafts/05_results_h2_h3_h4.tex`). The v3 action space
+weak analogue in v3" (`report/drafts/05_results_h2_h3_h4.tex`). The v3 action space
 (quantities at the touch) gave a better representation little to act on.

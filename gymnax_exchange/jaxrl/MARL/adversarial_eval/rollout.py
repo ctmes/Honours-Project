@@ -186,6 +186,37 @@ def restore_checkpoint(config, train_states, project: str, run_name: str = "loca
     return restored["model"], step
 
 
+def restore_agent_params(config, agent_ts, project: str, run_name: str, step, agent_idx: int):
+    """Replace ONE agent's params with that agent's params from another run.
+
+    restore_checkpoint restores every agent into this run's templates, so it fails
+    when the reference run's OTHER agent has a different structure -- e.g. swapping
+    the v4 common adversary in for a recurrent MM (MM_RECURRENT), whose template
+    carries GRU params the MLP reference checkpoint lacks. Here the checkpoint is
+    restored without a target and only `agent_idx`'s params are taken; they must
+    match `agent_ts.params` in tree structure and every leaf shape.
+    """
+    ckpt_dir = (f'{config["world_config"]["alphatradePath"]}/checkpoints/MARLCheckpoints'
+                f'/{project}/{run_name}')
+    mgr = oxcp.CheckpointManager(ckpt_dir, oxcp.PyTreeCheckpointer())
+    if step is None:
+        step = mgr.latest_step()
+    if step is None:
+        raise FileNotFoundError(f"No checkpoint found under {ckpt_dir}")
+    model = mgr.restore(step)["model"]
+    src = model[agent_idx] if isinstance(model, (list, tuple)) else model[str(agent_idx)]
+    src_params = src["params"]
+    if jax.tree_util.tree_structure(agent_ts.params) != jax.tree_util.tree_structure(src_params):
+        raise ValueError(f"{project}/{run_name}@{step}: agent {agent_idx} param tree differs")
+    bad = [(tuple(a.shape), tuple(np.shape(b)))
+           for a, b in zip(jax.tree.leaves(agent_ts.params), jax.tree.leaves(src_params))
+           if tuple(a.shape) != tuple(np.shape(b))]
+    if bad:
+        raise ValueError(f"{project}/{run_name}@{step}: agent {agent_idx} shape mismatch {bad[:3]}")
+    loaded = jax.tree.map(lambda t, r: jnp.asarray(r, dtype=t.dtype), agent_ts.params, src_params)
+    return agent_ts.replace(params=loaded), step
+
+
 # --------------------------------------------------------------------------- rollout
 def _per_env(x, n_envs):
     return np.asarray(x, dtype=np.float64).reshape(n_envs, -1).mean(axis=1)
@@ -407,10 +438,17 @@ def evaluate_checkpoint(project, run_name="local_run", n_envs=8, n_steps=None,
             # AdversaryNet has the same architecture in every arm, so the reference
             # checkpoint restores into the same template; only the adversary slot is
             # swapped — the MM under evaluation keeps its own parameters.
-            ts_ref, adv_used_step = restore_checkpoint(
-                cfg, ts_template, adv_project or project, adv_run_name, adv_step)
             ts = list(ts)
-            ts[env._adv_idx] = ts_ref[env._adv_idx]
+            if bool(cfg.get("MM_RECURRENT", False)):
+                # Recurrent MM (WS10c): the MLP reference run cannot restore into this
+                # template, so take ONLY the adversary's params from it.
+                ts[env._adv_idx], adv_used_step = restore_agent_params(
+                    cfg, ts_template[env._adv_idx], adv_project or project, adv_run_name,
+                    adv_step, env._adv_idx)
+            else:
+                ts_ref, adv_used_step = restore_checkpoint(
+                    cfg, ts_template, adv_project or project, adv_run_name, adv_step)
+                ts[env._adv_idx] = ts_ref[env._adv_idx]
         steps = int(n_steps) if n_steps is not None else int(cfg["NUM_STEPS"])
         arrays = run_rollout(env, nets, ts, cfg, mode, jax.random.PRNGKey(seed), n_envs, steps)
         out[mode] = rollout_metrics(arrays, periods_per_year)

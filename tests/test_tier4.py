@@ -175,3 +175,54 @@ def test_ws10b_rules():
     assert ws10b(_eval_file(2.0, 0.0))["verdict"].startswith("REGULARISATION")
     assert ws10b(_eval_file(0.0, -2.0))["verdict"].startswith("LABEL CONTENT MATTERS")
     assert "skipped" in ws10b({"per_seed": {"adversarial": {}}})
+
+
+# ------------------------------------------------------------ common adversary swap
+
+def test_common_adversary_swap_into_recurrent_template(tmp_path):
+    """Job 48163 died swapping the MLP common adversary into a recurrent MM's
+    template with restore_checkpoint (whole-tree restore). restore_agent_params
+    takes only the adversary and must give exactly the reference adversary."""
+    import orbax.checkpoint as oxcp
+    from flax.training import orbax_utils
+    from gymnax_exchange.jaxrl.MARL.adversarial_eval.rollout import (
+        restore_agent_params, restore_checkpoint)
+    from gymnax_exchange.jaxrl.MARL.attack_aware_policy import AdversaryNet, make_mm_network
+
+    adv_net = AdversaryNet(action_dim=10)
+    ref = [_train_state(make_mm_network(6, {}), 45, 1), _train_state(adv_net, 43, 2)]
+    d = tmp_path / "checkpoints" / "MARLCheckpoints" / "refproj" / "seed_0"
+    mgr = oxcp.CheckpointManager(str(d), oxcp.PyTreeCheckpointer(),
+                                 oxcp.CheckpointManagerOptions(create=True))
+    ckpt = {"model": ref, "metrics": {"avg_reward": [0.0, 0.0]}}
+    mgr.save(1002, ckpt, save_kwargs={"save_args": orbax_utils.save_args_from_target(ckpt)})
+    mgr.wait_until_finished()
+    cfg = {"world_config": {"alphatradePath": str(tmp_path)}, "NUM_ACTORS_PERTYPE": [4, 4]}
+
+    rec_template = [_train_state(make_mm_network(6, {"MM_RECURRENT": True}), 45, 7),
+                    _train_state(adv_net, 43, 8)]
+    with pytest.raises(Exception):                       # the failure mode of 48163
+        restore_checkpoint(cfg, rec_template, "refproj", "seed_0", 1002)
+    adv, step = restore_agent_params(cfg, rec_template[1], "refproj", "seed_0", 1002, 1)
+    assert step == 1002
+    for a, b in zip(jax.tree.leaves(adv.params), jax.tree.leaves(ref[1].params)):
+        np.testing.assert_array_equal(np.asarray(a), np.asarray(b))
+
+    # for an MLP template both paths give the identical adversary
+    mlp_template = [_train_state(make_mm_network(6, {}), 45, 9), _train_state(adv_net, 43, 10)]
+    full, _ = restore_checkpoint(cfg, mlp_template, "refproj", "seed_0", 1002)
+    only, _ = restore_agent_params(cfg, mlp_template[1], "refproj", "seed_0", 1002, 1)
+    for a, b in zip(jax.tree.leaves(full[1].params), jax.tree.leaves(only.params)):
+        np.testing.assert_array_equal(np.asarray(a), np.asarray(b))
+
+
+def test_ws10c_takes_mlp_arms_from_reference():
+    from analysis.tier4_check import ws10c
+    rng = np.random.default_rng(3)
+    base = rng.normal(0, 1, 20)
+    mk = lambda x: {"sharpe_off": x.tolist(), "inventory_sd_off": (x + 2).tolist()}
+    rec = {"per_seed": {"recurrent_baseline": mk(base + 1.0)}, "_meta": {"periods_per_year": 1.0}}
+    ref = {"per_seed": {"baseline": mk(base)}, "_meta": {"periods_per_year": 1.0}}
+    out = ws10c(rec, None, None, ref)["clean_performance"]["recurrent_baseline_minus_baseline"]
+    assert out["mean_diff"] == pytest.approx(1.0) and out["mlp_source"] == "--mlp-ref"
+    assert ws10c(rec, None, None, None)["clean_performance"] == {}

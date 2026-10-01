@@ -322,3 +322,36 @@ against 0.94–1.09 "in both v3 and v4" holds for v4 only: in v3 every arm is be
 2.11 and 2.53. Thesis wording: "a large effect in the exploratory v4 study with a
 weak analogue in v3" (`report/drafts/05_results_h2_h3_h4.tex`). The v3 action space
 (quantities at the touch) gave a better representation little to act on.
+
+## Addendum 2026-09-30: RC3 and RC4 (pre-registered, run on Kaya)
+
+**RC3: the detection head cannot detect a maximal one-sided attack.** Source:
+`results/forced_attack_v4_{bid,ask}_rc3.json` → `results/rc3_detection.txt`. The rerun
+reproduces the existing forced grid exactly. Across the head arms (detection, full,
+detection_noobs) and both sides, AUROC is 0.504–0.517, and every BCa 95% CI lies inside
+[0.496, 0.525]. The pre-registered verdict in all six cells is **CANNOT DETECT**. Mean
+det_prob is 0.0287–0.0308 clean against 0.0289–0.0311 attacked. Two bid-side cells are
+Holm-significant above 0.5 (0.517, p_holm 0.019; 0.513, p_holm 0.035), but negligible in
+size. The H3 null is **not** a label artefact. The heads output roughly the base rate of
+their near-empty training labels.
+
+**RC4: the rank-preservation mechanism is refuted.** Source: `results/encoder_rank_v4.txt`.
+Effective rank on the fixed observation set:
+
+| | effective rank | srank₀.₀₁ | dead units |
+|---|---|---|---|
+| head arms (detection, full, detection_noobs) | 2.30–2.50 | 8.9–9.3 | 44–45% |
+| no-head arms (baseline, adversarial, regime, unconstrained) | 7.15–7.39 | 14.2–14.6 | 35–36% |
+
+All three minimal pairs show the head arm LOWER: −4.67, −5.09 and −4.66 (d from −6.3 to
+−8.0; sign-flip p = 1.9×10⁻⁶, the exact floor; Holm 5.7×10⁻⁶). Across 140 checkpoints,
+Spearman(erank, inventory_sd_off) = −0.72. The pre-registered verdict is **NOT
+SUPPORTED**. The auxiliary loss compresses the encoder rather than preserving its rank,
+and the compressed encoders are the ones that keep trading. The collapse-prevention
+effect stays a behavioural finding with an open mechanism. The shuffled-label arm
+(WS10b) tests whether label content matters.
+
+**Tier 4 status (2026-09-30).** All six training arrays completed (20/20 seeds each).
+The first evaluation submissions failed only because they started before training
+finished. They were resubmitted, and the learned-attack smoke test reproduces
+eval_17313 exactly.

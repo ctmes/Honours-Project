@@ -121,18 +121,23 @@ def ws10b(d: dict) -> dict:
     return {"tests": tests, "verdict": verdict}
 
 
-def ws10c(d: dict | None, fb: dict | None, fa: dict | None) -> dict:
+def ws10c(d: dict | None, fb: dict | None, fa: dict | None, ref: dict | None = None) -> dict:
+    """ref: an earlier eval JSON (e.g. eval_17313) supplying the MLP arms when `d`
+    holds only the recurrent ones. Valid because the eval is deterministic per seed:
+    every re-run of these arms has reproduced eval_17313 exactly."""
     out = {}
     if d is not None:
         pairs = [("recurrent_baseline", "baseline"), ("recurrent_full", "full")]
         fam = {}
         for a, b in pairs:
-            if a in d["per_seed"] and b in d["per_seed"]:
-                fam[f"{a}_minus_{b}"] = _test(_ps(d, a, "sharpe_off") - _ps(d, b, "sharpe_off"),
+            src_b = d if b in d["per_seed"] else ref
+            if a in d["per_seed"] and src_b is not None and b in src_b["per_seed"]:
+                fam[f"{a}_minus_{b}"] = _test(_ps(d, a, "sharpe_off") - _ps(src_b, b, "sharpe_off"),
                                               _scale(d, "sharpe_off"))
                 fam[f"{a}_minus_{b}"]["inventory_sd_off"] = {
                     "recurrent": float(np.nanmean(_ps(d, a, "inventory_sd_off"))),
-                    "mlp": float(np.nanmean(_ps(d, b, "inventory_sd_off")))}
+                    "mlp": float(np.nanmean(_ps(src_b, b, "inventory_sd_off")))}
+                fam[f"{a}_minus_{b}"]["mlp_source"] = "same file" if src_b is d else "--mlp-ref"
         adj = holm_adjust({k: r["p"] for k, r in fam.items()}) if fam else {}
         for k, r in fam.items():
             r["p_holm"] = adj[k]
@@ -195,6 +200,8 @@ def main() -> int:
     ap.add_argument("--eval")
     ap.add_argument("--forced-bid")
     ap.add_argument("--forced-ask")
+    ap.add_argument("--mlp-ref", help="eval JSON supplying baseline/full when --eval holds only "
+                                      "the recurrent arms (e.g. results/eval_17313.json)")
     ap.add_argument("--out")
     args = ap.parse_args()
     res = {}
@@ -205,7 +212,8 @@ def main() -> int:
         res["ws10b"] = ws10b(ev)
     if ev is not None or args.forced_bid or args.forced_ask:
         res["ws10c"] = ws10c(ev, _load(args.forced_bid) if args.forced_bid else None,
-                             _load(args.forced_ask) if args.forced_ask else None)
+                             _load(args.forced_ask) if args.forced_ask else None,
+                             _load(args.mlp_ref) if args.mlp_ref else None)
     text = format_text(res)
     print(text)
     if args.out:

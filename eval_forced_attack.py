@@ -87,9 +87,12 @@ EXTRA_ARMS = {
                            "config/rl_configs/eval_2024_test_v4r_config1.yaml"),
     "recurrent_full":     ("v4r_config3_full",
                            "config/rl_configs/eval_2024_test_v4r_config3.yaml"),
+    # H3m: detection arm trained against a scripted material attack
+    "scripted_detection": ("v4s_config4_detection",
+                           "config/rl_configs/eval_2024_test_v4s_config4.yaml"),
 }
 # Tier-4 arms whose detection head is trained (shuffled labels still train it).
-EXTRA_HEAD_ARMS = ("shuffled_noobs", "recurrent_full")
+EXTRA_HEAD_ARMS = ("shuffled_noobs", "recurrent_full", "scripted_detection")
 
 
 def resolve_arm(arm: str, pfx: str) -> tuple[str, str]:

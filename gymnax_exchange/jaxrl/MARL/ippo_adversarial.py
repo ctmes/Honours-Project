@@ -172,6 +172,29 @@ def create_agent_configs(config: dict) -> dict:
 # Main make_train
 # ---------------------------------------------------------------------------
 
+def scripted_injection_action(window_index, n_levels: int = 5):
+    """H3 training attack: a sustained, material, ONE-SIDED injection per episode.
+
+    Side and magnitude are deterministic functions of the episode's window index,
+    so every episode carries one fixed attack and nothing new is stored in the env
+    state: even windows spoof the bid, odd windows the ask; magnitude in
+    [0.25, 1.0) via a golden-ratio hash. The env's telegraph gate still switches the
+    injection on and off, so roughly half the steps are attacked, and every
+    attacked step is material: >= 2.5x the spoofed side's best-quote depth at
+    inject_mult 2. The oracle label keeps the pre-registered materiality floor of
+    0.0, so label == gate.
+    Returns (batch, 2 * n_levels) in the adversary's action encoding
+    [bid levels..., ask levels...].
+    """
+    w = jnp.asarray(window_index).astype(jnp.float32).reshape(-1)
+    bid_side = (jnp.mod(w, 2.0) == 0.0)
+    mag = 0.25 + 0.75 * jnp.mod(w * 0.6180339887, 1.0)
+    ones = jnp.ones((w.shape[0], n_levels), dtype=jnp.float32)
+    bid = jnp.where(bid_side[:, None], mag[:, None], 0.0) * ones
+    ask = jnp.where(bid_side[:, None], 0.0, mag[:, None]) * ones
+    return jnp.concatenate([bid, ask], axis=-1)
+
+
 def load_mm_params(mm_train_state, spec: str, mm_index: int, config: dict):
     """Replace a TrainState's params with the MM params saved in another run.
 
@@ -279,8 +302,17 @@ def make_train(config: dict):
     label_mode   = str(config.get("DETECTION_LABEL_MODE", "oracle"))
     if label_mode not in ("oracle", "shuffled"):
         raise ValueError(f"DETECTION_LABEL_MODE must be oracle|shuffled, got {label_mode!r}")
+    #   ADV_SCRIPTED         H3 (material-attack training): replace the adversary's
+    #                        action by scripted_injection_action and never update the
+    #                        adversary, so the detection head trains on frequent,
+    #                        material, one-sided attacks instead of an adversary that
+    #                        abstains (v3/v4). Alternation is kept so the MM gets the
+    #                        same number of updates as the v4 arms.
+    adv_scripted = bool(config.get("ADV_SCRIPTED", False))
     if freeze_mm and not mm_init_from:
         raise ValueError("FREEZE_MM without MM_INIT_FROM would attack an untrained MM")
+    if adv_scripted and freeze_mm:
+        raise ValueError("ADV_SCRIPTED with FREEZE_MM trains nothing")
 
     def linear_schedule(lr, count):
         # Each agent's optax step count only advances on the updates where it is
@@ -412,6 +444,13 @@ def make_train(config: dict):
                     env.multi_agent_config.number_of_agents_per_type[i],
                 )
                 actions.append(action.squeeze(-2) if action.ndim > 2 else action.squeeze())
+
+            if adv_scripted:
+                n_lv = int(env.list_of_agents_configs[adv_idx].n_spoof_levels)
+                scripted = scripted_injection_action(
+                    env_state.world_state.window_index, n_lv)
+                actions[adv_idx] = jnp.reshape(scripted, actions[adv_idx].shape).astype(
+                    actions[adv_idx].dtype)
 
             # Feed the MM's detection output on last_obs into the adversary-state
             # carrier BEFORE stepping, so the MM observation built inside env.step
@@ -871,7 +910,10 @@ def make_train(config: dict):
 
             # Selective update (fresh permutation key per update)
             rng_curr, rng_update = jax.random.split(rng_curr)
-            if phase == 0:
+            if phase == 0 and adv_scripted:
+                # Scripted adversary (H3): nothing learns in this phase.
+                loss_mm, loss_adv = None, None
+            elif phase == 0:
                 # Update adversary
                 new_ts_adv, loss_adv = jitted_update_adv(
                     train_states_curr[adv_idx],

@@ -177,6 +177,53 @@ def test_ws10b_rules():
     assert "skipped" in ws10b({"per_seed": {"adversarial": {}}})
 
 
+def _nopcgrad_file(n_minus_b, n=20, seed=2):
+    """G = B + 2 (the observed head benefit); N = B + n_minus_b."""
+    rng = np.random.default_rng(seed)
+    b = rng.normal(0.0, 1.0, n)
+    g = b + 2.0 + rng.normal(0, 0.05, n)
+    nn = b + n_minus_b + rng.normal(0, 0.05, n)
+    mk = lambda x: {"sharpe_off": x.tolist(), "inventory_sd_off": (x + 5).tolist()}
+    return {"per_seed": {"adversarial": mk(b), "detection_noobs": mk(g), "nopcgrad_noobs": mk(nn)},
+            "_meta": {"periods_per_year": 1.0}}
+
+
+def test_ws10d_rules():
+    from analysis.tier4_check import ws10d
+    assert ws10d(_nopcgrad_file(2.0))["verdict"].startswith("BCE ALONE SUFFICES")
+    assert ws10d(_nopcgrad_file(0.0))["verdict"].startswith("PCGRAD NECESSARY")
+    assert ws10d(_nopcgrad_file(1.0))["verdict"].startswith("BOTH CONTRIBUTE")
+    assert "skipped" in ws10d({"per_seed": {"adversarial": {}}})
+
+
+def test_ws10d_reference_arms_from_mlp_ref():
+    """The eval runs only the new arm; B and G come from eval_17313 via --mlp-ref.
+    Splitting one file into (new arm) + (reference) must give the same result."""
+    from analysis.tier4_check import ws10d
+    full = _nopcgrad_file(2.0)
+    only_n = {"per_seed": {"nopcgrad_noobs": full["per_seed"]["nopcgrad_noobs"]},
+              "_meta": full["_meta"]}
+    ref = {"per_seed": {k: full["per_seed"][k] for k in ("adversarial", "detection_noobs")}}
+    split, joint = ws10d(only_n, ref), ws10d(full)
+    assert split["verdict"] == joint["verdict"]
+    assert split["reference_source"] == {"adversarial": "--mlp-ref", "detection_noobs": "--mlp-ref"}
+    assert "skipped" in ws10d(only_n, None)
+
+
+def test_ws10d_config_differs_from_g_only_in_pcgrad_and_project():
+    import yaml
+    from pathlib import Path
+    rl = Path(__file__).resolve().parents[1] / "config" / "rl_configs"
+    g = yaml.safe_load((rl / "kaya_v4_config7_detection_noobs.yaml").read_text())
+    n = yaml.safe_load((rl / "kaya_v4_config9_nopcgrad_noobs.yaml").read_text())
+    assert g["PCGRAD_ENABLED"] is True and n["PCGRAD_ENABLED"] is False
+    assert n["PROJECT"] == "v4_config9_nopcgrad_noobs"
+    assert {k for k in g.keys() | n.keys() if g.get(k) != n.get(k)} == {"PCGRAD_ENABLED", "PROJECT"}
+    ge = yaml.safe_load((rl / "eval_2024_test_v4_config7.yaml").read_text())
+    ne = yaml.safe_load((rl / "eval_2024_test_v4_config9.yaml").read_text())
+    assert {k for k in ge.keys() | ne.keys() if ge.get(k) != ne.get(k)} == {"PROJECT"}
+
+
 # ------------------------------------------------------------ common adversary swap
 
 def test_common_adversary_swap_into_recurrent_template(tmp_path):

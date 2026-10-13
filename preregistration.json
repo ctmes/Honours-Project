@@ -1,7 +1,7 @@
 {
   "_comment": "PRE-REGISTERED analysis decisions for the 3-arm x 20-seed study. Frozen BEFORE any evaluation result is computed (sweep launched 2026-07-16; no checkpoint has been evaluated). run_production_eval.py refuses to run confirmatory tests unless signed_off is true - set it only after supervisor agreement, and do not edit values afterwards. Any post-hoc change must be reported as such in the thesis.",
   "signed_off": true,
-  "signed_off_by": "Colin Melville (candidate). SUPERVISOR CONFIRMATION FROM DR WEN OUTSTANDING as of this date - the decisions above were taken by the candidate and put to her in the v2 design brief of 2026-08-27. Recorded this way so the provenance is accurate.",
+  "signed_off_by": "Colin Melville (candidate), 2026-08-27. SUPERVISOR CONFIRMATION: Dr Wen signed off on the pre-registration and on every amendment dated up to 2026-10-06 on 2026-10-07, and on the two amendments of 2026-10-09 on 2026-10-12 (both reported by the candidate). The decisions were taken by the candidate and put to her in the v2 design brief of 2026-08-27; her confirmation came later, and is recorded with its own date so the provenance stays accurate.",
   "signed_off_date": "2026-08-27",
   "seeds": [
     0,
@@ -105,7 +105,8 @@
       "motivation": "Both pre-registered gates failed on v2 because of an environment implementation fault, not because of anything the hypotheses predict. Diagnosed from training logs and two 6-seed pilots BEFORE any v3 checkpoint existed.",
       "analysis_decisions_changed": "NONE. Hypotheses, primary_metrics, alpha, multiplicity, equivalence_margins, progression_gate criteria, seeds, checkpoint_step, periods_per_year and the common-adversary design are all unchanged. This amendment fixes the ENVIRONMENT, not the statistics, which is why signed_off is not reset.",
       "caveat": "The pilots ran 200 updates, a fifth of production, and classified seeds by terminal policy entropy rather than measured quote_presence. They establish that the ratchet is absent at that horizon; they do not establish that the v3 arms clear the progression gate. That remains a genuine pre-registered risk of failure.",
-      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-02, not yet approved."
+      "candidate_sign_off": "drafted 2026-09-02.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
     },
     {
       "name": "v4_spread_skew_amendment",
@@ -119,7 +120,8 @@
       "behavioural_change_recorded": "spread_skew now masks the agent's OWN resting orders before reading the touch, as bobRL already did. This is a change to what the agent does, not only to what it reports, and is recorded as such. It matters more here than in bobRL: bobRL quotes AT the touch, whereas spread_skew derives prices FROM mid and spread, so quoting off one's own resting orders is a feedback loop that walks the quote away from the market. spread_multiplier (3.0), skew_multiplier (5.0) and multiplier_type ('tick') are now written out explicitly in the env config; they were absent from every v1-v3 config and would otherwise take dataclass defaults unnoticed, the same failure mode as inv_penalty_quadratic_factor.",
       "validity_gate_caveat": "quote_presence LOSES ITS DISCRIMINATING POWER under spread_skew and must not be cited as evidence that v4 is valid in the way it was for v3. spread_skew posts fixed_quant_value on BOTH sides on every step, so quote_presence is 1.0 unless the book is empty or the position limit is liquidating. The v2 failure mode it was built to catch - a policy abandoning two-sided quoting - is not expressible in this action space. Validity for v4 must be argued from inventory_sd, peak_inventory and the within-episode reward drift instead.",
       "preconditions_before_the_sweep": "A single-seed smoke run must reach at least update 3 (both previous v4-class launches died inside 80 seconds), and the perturbed-vs-clean action-agreement check must show the adversary actually flipping the selected action. If a spoofed observation does not change the chosen action, v4 fails for v3's reason and the sweep should not be run.",
-      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-10, not yet approved."
+      "candidate_sign_off": "drafted 2026-09-10.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
     },
     {
       "name": "forced_worst_case_attack_amendment",
@@ -132,7 +134,8 @@
       "inference_status": "EXPLORATORY. Effect sizes and confidence intervals only. Reported as a new, clearly-labelled supplementary robustness analysis; not a rerun of, replacement for, or reconciliation with the v3 confirmatory result (eval_1179095) or the v4 exploratory result (eval_17313), which stand as reported. Output metric keys are suffixed _forced/_off (never _on/_off) so a forced-attack file cannot be mistaken for a co-trained-adversary result.",
       "analysis_decisions_changed": "NONE. alpha, multiplicity, primary_metrics, equivalence_margins, progression_gate criteria, seeds (n=20), checkpoint_step and the common-adversary design of the confirmatory study are untouched.",
       "preconditions_before_the_sweep": "Single-seed smoke test on the BASELINE arm must show mean_attack_rate_forced ~= 1.0 with budget_final_frac well above 0, and its off condition must reproduce eval_17313.json's *_off values for that seed (the forced-attack loop is faithful to the production loop). Single-seed smoke test on the FULL arm must show a |queue_imbalance| shift in the ballpark of check_adversary_lever.py's one-sided reference (~0.50 at inject_mult=2.0), with the signed shift flipping between --side bid and --side ask. If either fails, the override is not reaching the environment as assumed and the grid is not run.",
-      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-27, not yet approved."
+      "candidate_sign_off": "drafted 2026-09-27.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
     },
     {
       "name": "robustness_checks_amendment_2026-09-28",
@@ -147,8 +150,9 @@
       },
       "analysis_decisions_changed": "NONE. alpha, multiplicity, primary_metrics, equivalence_margins, progression_gate criteria, seeds (n=20), checkpoint_step and the common-adversary design are untouched. RC1-RC4 are additional reporting.",
       "written_before_results": "Yes. No RC1-RC4 statistic had been computed when this entry was written (2026-09-28). RC3 and RC4 require new Kaya jobs that had not been submitted.",
-      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-28, not yet approved.",
-      "kappa_anchor_correction": "Recorded 2026-09-28; the kappa value (1.0) is NOT changed. kappa_anchor cites the ORIGINAL final judgment's disgorgement ($4,495,564 + $131,750 interest). The amended final judgment of 2021-02-09 (affirmed 2d Cir. 2022-06-15) instead ordered Avalon, Fayyer and Pustelnik each to pay a $7.5M civil penalty, against >$25M illicit proceeds (SEC Litigation Release No. 25427). Total sanctions ~0.9x proceeds, so the anchor kappa ~ 1 still holds, on the final remedy."
+      "candidate_sign_off": "drafted 2026-09-28.",
+      "kappa_anchor_correction": "Recorded 2026-09-28; the kappa value (1.0) is NOT changed. kappa_anchor cites the ORIGINAL final judgment's disgorgement ($4,495,564 + $131,750 interest). The amended final judgment of 2021-02-09 (affirmed 2d Cir. 2022-06-15) instead ordered Avalon, Fayyer and Pustelnik each to pay a $7.5M civil penalty, against >$25M illicit proceeds (SEC Litigation Release No. 25427). Total sanctions ~0.9x proceeds, so the anchor kappa ~ 1 still holds, on the final remedy.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
     },
     {
       "name": "tier4_extensions_amendment_2026-09-28",
@@ -163,7 +167,8 @@
       },
       "analysis_decisions_changed": "NONE. The confirmatory design, its tests and every earlier result are untouched.",
       "written_before_results": "Yes. No WS10 run had been submitted when this entry was written (2026-09-28).",
-      "candidate_sign_off": "PENDING REVIEW - drafted 2026-09-28, not yet approved."
+      "candidate_sign_off": "drafted 2026-09-28.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
     },
     {
       "name": "h3_material_attack_amendment_2026-10-02",
@@ -178,7 +183,141 @@
       },
       "analysis_decisions_changed": "NONE. alpha, multiplicity, primary_metrics, equivalence_margins, progression_gate, seeds (n=20), checkpoint_step, label_materiality_frac (0.0) and the common-adversary design are untouched.",
       "written_before_results": "Yes. Written 2026-10-02 after a 3-update local smoke run (2022_small) that checked only that training runs and the adversary stays frozen; no scripted_detection training job had been submitted and no H3m statistic had been computed.",
-      "candidate_sign_off": "PENDING REVIEW - drafted 2026-10-02, not yet approved."
+      "candidate_sign_off": "drafted 2026-10-02.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
+    },
+    {
+      "name": "h3m_generalisation_amendment_2026-10-06",
+      "date": "2026-10-06",
+      "status": "EXPLORATORY EXTENSION - NOT CONFIRMATORY",
+      "change": "No retraining and no new arm. eval_forced_attack.py gains two options: --side both (the same magnitude injected on ALL 5 bid AND all 5 ask levels) and --inject-scale s in (0,1] (the fraction of the maximum injected on every spoofed level; the existing grid is s=1.0). force_action is the only changed function; zero changes to adversarial_marl_env.py, spoofing_agent.py, rollout.py, ippo_adversarial.py or any config. The EXISTING scripted_detection checkpoints (v4s_config4_detection, step 1002, 20 seeds) are then evaluated on the 2024-Q4 holdout under two conditions OUTSIDE their scripted training family, with the RC3/H3m protocol otherwise unchanged (n_envs 64, budget 1e7, gate forced on): (A) SYMMETRIC maximal: --side both --inject-scale 1.0. (B) SUB-THRESHOLD one-sided: --side bid and --side ask at --inject-scale 0.10. The training family (ippo_adversarial.scripted_injection_action) is one-sided per episode at magnitude 0.25-1.0 of maximum, so (A) is out of family in SIDEDNESS and (B) is out of family in MAGNITUDE. Analysis: analysis.h3_material_check, whose condition labels now come from each file's _meta.side/inject_scale rather than its argument position, so the same pre-registered rule applies to any pair of conditions.",
+      "motivation": "H3m is SUPPORTED (AUROC 0.849/0.864, 2026-10-06) but the test attack is the maximal member of the head's own training family, so what has been shown is that the head detects the attack it was trained on, on held-out days. Two specific alternatives remain open and are discriminated here. (1) SIDEDNESS vs MATERIALITY: the oracle training label is the telegraph gate (label_materiality_frac = 0.0), which fires on about half of steps regardless of which side is spoofed, so the head could have learned 'any material injection' rather than 'a one-sided injection'. Only a symmetric attack separates these, and check_adversary_lever.py established that a symmetric injection leaves queue_imbalance exactly unchanged. (2) The symmetric attack is not a strawman: it is what the cost-free co-trained adversary (sidedness 0.08) and the WS10a learned optimal adversary (0.21-0.26) both converged to, so it is the attack a rational adversary in this market actually chooses. A detector that fires only on one-sided spoofing would therefore not fire on the attack an optimising adversary would mount, which is a material limit on the H3m claim and must be tested rather than assumed either way. Decided BEFORE any generalisation result existed.",
+      "preconditions": "Resolved before the full grid, not assumed, exactly as in forced_worst_case_attack_amendment. (i) BUDGET: the symmetric condition injects on 10 levels instead of 5, so it consumes up to twice the volume per step; budget 1e7 was verified non-binding for the one-sided maximal attack only. A 1-seed smoke test of condition (A) must show budget_exhausted_frac = 0 and attack rate 1.000, and the budget is raised and the smoke test repeated until it does. The value used is recorded in _meta.budget_override. (ii) FAITHFULNESS: in every run the 'off' condition must reproduce results/forced_attack_v4s_{bid,ask}.json's *_off per-seed values to within 1e-6 relative (--reference-eval), so forced-vs-off differs only in the attack. (iii) TREATMENT DELIVERED: condition (A) must show attack rate 1.000 with mean_bid_volume_injected ~= mean_ask_volume_injected and |QI| shift indistinguishable from the off condition (that is the construction, and it is checked, not assumed); condition (B) must show attack rate 1.000 and a |QI| shift about 0.10/1.00 of the maximal one-sided shift of 0.40/0.44.",
+      "decision_rules": {
+        "primary": "Per condition: one-sample test of the 20 per-seed det_auroc_forced_vs_off against 0.5 (stats.one_sample_comparison plus the RC1 sign-flip), Holm over the conditions within each analysis call, classified by the unchanged RC3 rule (analysis.rc3_detection_check.classify): mean >= 0.60 and Holm p < 0.05 -> DETECTS; 95% BCa CI of the mean inside [0.45, 0.55] -> CANNOT DETECT; otherwise INCONCLUSIVE.",
+        "interpretation_symmetric": "DETECTS -> the head has learned materiality, not sidedness, and H3m generalises to the attack a rational adversary actually chooses. This is the stronger result and would be reported as such. CANNOT DETECT -> H3m is bounded to one-sided spoofing: the head detects the trained attack family and not the attack an optimising adversary converges to. Reported as a limit on H3m, in the same section as the primary H3m result, not buried.",
+        "interpretation_subthreshold": "Descriptive and never a gate: AUROC at scale 0.10 against AUROC at scale 1.00 (the existing H3m run) is reported as the detector's magnitude sensitivity, graceful decay versus cliff. No threshold is pre-specified because no hypothesis in this project concerns the shape of that curve.",
+        "multiplicity_and_scope": "These conditions are NOT pooled with the in-family H3m Holm family, and they do not change the in-family H3m verdict of 2026-10-06, which stands as reported. Both outcomes of the symmetric condition are reported; neither is treated as a robustness check that can be dropped."
+      },
+      "inference_status": "EXPLORATORY. Effect sizes and confidence intervals only. The confirmatory result of record remains v3 (eval_1179095), where H3 is null. H3m and this extension are both exploratory and remain so regardless of outcome.",
+      "analysis_decisions_changed": "NONE for any pre-registered test. alpha, multiplicity, primary_metrics, equivalence_margins, progression_gate criteria, seeds, checkpoint_step and the common-adversary design are untouched. One analysis-script behaviour did change and is disclosed: analysis.h3_material_check previously REFUSED a bid/ask pair passed in swapped argument slots, because it took each condition's label from its slot; it now derives the label from the file's own _meta and so labels a swap correctly instead of refusing it. The hazard the old guard covered -- analysing one condition twice as if it were two -- is still refused, and both behaviours are pinned by tests/test_h3_scripted.py.",
+      "candidate_sign_off": "drafted 2026-10-06.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07",
+      "precondition_outcomes": {
+        "recorded": "2026-10-07, after the 1-seed smoke test (Kaya job 89593) and BEFORE the full grid; no detection AUROC from any condition had been seen.",
+        "i_budget": "PASS. budget_exhausted_frac 0, budget_final_frac 0.858 at budget 1e7; attack rate 1.000.",
+        "ii_faithfulness": "PASS. sharpe_off, sortino_off, cvar_off, inventory_sd_off reproduce results/forced_attack_v4s_bid.json with max|diff| = 0.",
+        "iii_treatment": "PARTIAL - DEVIATION. Volumes are approximately symmetric (bid 1310, ask 1461 on seed 0; each side is scaled to its own best-quote depth). But |QI| is NOT unchanged: mean |QI| fell from 0.506 (off) to 0.422 (forced) on seed 0. The injection is proportional to best-quote depth on every level while QI aggregates across levels, so a symmetric injection compresses the imbalance towards zero rather than leaving it exactly unchanged; the motivation's statement that check_adversary_lever.py showed QI 'exactly unchanged' does not hold for this observation. Decision, taken before any result: run the condition as specified and report it as a symmetric, NON-DIRECTIONAL material attack that dampens |QI| by about one sixth, not as a QI-neutral one. Pre-specified directional check on the full grid: the condition counts as direction-neutral if |mean(qi_mean_forced - qi_mean_off)| over the 20 seeds is below 0.05 (about one ninth of the one-sided shift of 0.40/0.44). If it is not, the symmetric condition is reported as directional and its verdict cannot separate sidedness from materiality. Interpretation adjustment: a DETECTS verdict could rest on |QI| compression or on injected volume, so it is read as 'detects a material non-directional injection', not as 'detects the attack while QI is uninformative'. The CANNOT DETECT reading is unchanged.",
+        "full_grid": {
+          "recorded": "2026-10-08, Kaya array 89635 (all 3 tasks COMPLETED), analysed locally.",
+          "i_ii": "PASS in all three conditions: attack rate 1.000, budget_exhausted_frac 0, and every *_off metric reproduces the in-family run with max|diff| = 0.",
+          "iii_symmetric_direction_check": "PASS on the pre-specified rule: mean signed QI shift -0.0028 (sd 0.0014, max |0.006|) over 20 seeds, below 0.05. Mean |QI| fell 0.508 -> 0.426, as recorded in the smoke-test deviation. The condition is therefore a direction-neutral, |QI|-dampening material attack.",
+          "iii_subthreshold": "DEVIATION, disclosed: the signed QI shift was +0.098 (bid) / -0.099 (ask), i.e. about 0.23 of the maximal one-sided shift of 0.420/0.416, not the 0.10 the amendment expected. QI is not linear in injected volume (it saturates). The sub-threshold conditions were therefore stronger than planned. No rule depends on this; the magnitude comparison is descriptive by design."
+        }
+      },
+      "results": {
+        "symmetric": "AUROC 0.950, BCa [0.946, 0.954], Holm p = 1.2e-33, sign-flip p = 1.9e-6, det_prob forced/off 0.830/0.397 -> DETECTS.",
+        "subthreshold": "bid@0.10 AUROC 0.566 [0.561, 0.571]; ask@0.10 AUROC 0.575 [0.570, 0.580]; both Holm p < 1e-15 -> INCONCLUSIVE (above chance, below the 0.60 bar).",
+        "reading": "Per interpretation_symmetric and the 2026-10-07 deviation: the head detects a material NON-DIRECTIONAL injection, i.e. it learned materiality rather than sidedness, and detects the symmetric attack an optimising adversary converges to. Per interpretation_subthreshold (descriptive): detection decays steeply with magnitude, from 0.85/0.86 at full strength to 0.57/0.58 at a tenth of the volume - a cliff rather than graceful decay. The in-family H3m verdict of 2026-10-06 is unchanged."
+      }
+    },
+    {
+      "name": "ws10d_nopcgrad_amendment_2026-10-06",
+      "date": "2026-10-06",
+      "status": "EXPLORATORY EXTENSION - NOT CONFIRMATORY",
+      "change": "One new training arm, N (v4_config9_nopcgrad_noobs), generated by make_tier4_configs.py (ws10d) from kaya_v4_config7_detection_noobs.yaml (arm G) with exactly two changes: PCGRAD_ENABLED false and PROJECT. Same env, same oracle labels, same BCE head whose output is NOT in the policy observation; the only difference from G is that the PPO and BCE gradients are summed instead of PCGrad-merged (ippo_adversarial.py: use_det and not pcgrad_on). 20 seeds, 1002 updates, the v4 schedule unchanged. Evaluated clean (attack off) on the 2024-Q4 holdout by run_production_eval.py --project-prefix v4 --arms nopcgrad_noobs (n_envs 64, step 1002, v4 common adversary); arms B (adversarial) and G (detection_noobs) are taken from results/eval_17313.json via analysis.tier4_check --mlp-ref, which is valid because the eval is deterministic per seed. No code path used by any earlier arm changes.",
+      "motivation": "PCGrad acts only when the BCE loss is present, so every v4 arm with an auxiliary head (C, E, G, H) also had its encoder gradients projected and no arm without one did. The auxiliary-loss finding (head arms avoid the low-activity collapse; shuffled labels reproduce it, WS10b) therefore cannot attribute the benefit to the BCE loss rather than to PCGrad. The thesis currently reports it as 'BCE loss plus PCGrad'. Arm N separates them.",
+      "preconditions": "Before analysis: all 20 seeds reach step 1002 (run_production_eval.py pre-flight), and the training log of every N seed shows bce_raw > 0, i.e. the head was actually trained. If fewer than 20 seeds finish before the 2026-10-12 analysis freeze, the analysis runs on the first k seeds (run_production_eval.py --n-seeds k, k >= 10), paired with the same k seeds of B and G, and k is reported; it is not extended after the result is seen.",
+      "decision_rules": {
+        "tests": "Exact sign-flip permutation test (RC1) on paired per-seed differences N-B and N-G, for sharpe_off and inventory_sd_off: one Holm family of 4 tests. Sharpe reported per step.",
+        "primary": "On sharpe_off: N-B > 0 with Holm p < 0.05 and N-G not significant -> BCE ALONE SUFFICES. N-G < 0 with Holm p < 0.05 and N-B not significant -> PCGRAD NECESSARY. N-B > 0 and N-G < 0, both Holm p < 0.05 -> BOTH CONTRIBUTE. Anything else -> INCONCLUSIVE. Implemented as analysis.tier4_check.ws10d and pinned by tests/test_tier4.py.",
+        "interpretation": "BCE ALONE SUFFICES -> the auxiliary-loss finding is reported as a property of the BCE loss, and the PCGrad confound is removed from the limitations. PCGRAD NECESSARY -> the finding is reported as a gradient-interaction effect of PCGrad between two objectives; the neural-collapse account is weakened. BOTH CONTRIBUTE -> both reported, with effect sizes. INCONCLUSIVE -> the confound stays as written. inventory_sd_off is reported alongside as the collapse diagnostic but does not change the verdict."
+      },
+      "inference_status": "EXPLORATORY. Effect sizes and confidence intervals only. The confirmatory result of record remains v3 (eval_1179095). No outcome of this arm changes any H1-H4 verdict.",
+      "analysis_decisions_changed": "NONE for any pre-registered test. alpha, multiplicity, primary_metrics, equivalence_margins, progression_gate, seeds, checkpoint_step and the common-adversary design are untouched.",
+      "candidate_sign_off": "drafted 2026-10-06, before any arm-N training or result.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-07"
+    },
+    {
+      "name": "shallow_book_beta_amendment_2026-10-09",
+      "date": "2026-10-09",
+      "status": "EXPLORATORY EXTENSION - NOT CONFIRMATORY",
+      "change": "No RL training and no change to any environment, agent or evaluation code. The existing queue-imbalance fair-value calibration (analysis/qi_fair_value.py, unchanged estimator) is applied to four further Nasdaq-listed stocks, chosen to span book depth and relative tick size: BYND (thin, volatile small-cap, low price), ZM (thinner mid-cap), INTC (low price, large tick, deep queues), NFLX (high price, thin book, small relative tick). Data: Databento XNAS.ITCH MBO for exactly the 16 days used for AMZN (2024-01-02, 2024-01-19, 2024-02-06, 2024-02-23, 2024-03-12, 2024-03-28, 2024-04-16, 2024-05-02, 2024-05-20, 2024-06-06, 2024-06-25, 2024-07-12, 2024-07-30, 2024-08-15, 2024-09-03, 2024-09-19), converted with convert_dbn_to_lobster.py, whose only change is a --ticker option for output file names (default AMZN, so existing conversions are unchanged). Horizon 100 messages, L1 QI defined exactly as for AMZN, day-clustered bootstrap with 2000 resamples, seed 0, every=1.",
+      "motivation": "The H1 null is explained by the calibration: on AMZN a maximal one-sided spoof moves the imbalance-implied fair value by beta x dQI = 0.278 x 0.42 = 0.11-0.12 ticks, too little to move a tick-rounded quote. The forced attack is scaled to each side's own best-quote depth, so dQI (about 0.42) is approximately book-independent; what differs across stocks is beta. This amendment measures beta out of sample to turn the null into a boundary condition: on which books would an observation spoof of this kind be material? It also tests the explanation itself on data it was not fitted to.",
+      "preconditions": "Before computing beta for a stock: (i) all 16 days convert, or the stock is reported with the number of days that did; (ii) each converted day has at least 20,000 trading-hours messages (at least 200 non-overlapping 100-message horizons), else that day is excluded and reported; (iii) median quoted spread is positive and the tick is $0.01 (TICK = 100 LOBSTER units), as for AMZN. A stock failing (i)-(ii) on more than half its days is reported as insufficient data, not analysed.",
+      "decision_rules": {
+        "primary": "Per stock: implied quote shift S = beta x dQI with dQI = +0.40 (bid) and -0.44 (ask), the measured AMZN forced-attack shifts, and its 95% day-bootstrap CI. The spoof is classified MATERIAL for that stock if the lower CI bound of |S| is at least 0.5 tick on either side (enough to move a tick-rounded quote by one tick with probability above one half for a rational imbalance-pricing market maker), IMMATERIAL if the upper bound is below 0.25 tick on both sides, otherwise BORDERLINE.",
+        "secondary": "Descriptive, no threshold: |S| expressed as a fraction of the stock's median spread, since a tick is a different economic size on NFLX than on INTC; beta plotted against median L1 depth and median spread in ticks across the five stocks (AMZN plus four).",
+        "interpretation": "Any MATERIAL stock -> the H1 null is bounded to books like AMZN, and the thesis names the book characteristics under which an observation spoof should bite, as a prediction for future work. All IMMATERIAL -> the null extends across the depth and tick range tested, and the explanation for it is not specific to AMZN. Either way this is a calibration of what a rational imbalance-pricing market maker SHOULD do; it does not show what a trained RL market maker WOULD do on these stocks, and is never reported as an H1 result."
+      },
+      "inference_status": "EXPLORATORY. Calibration only; no hypothesis H1-H4 verdict depends on it. The confirmatory result of record remains v3 (eval_1179095).",
+      "analysis_decisions_changed": "NONE for any pre-registered test.",
+      "candidate_sign_off": "drafted 2026-10-09, before any of the four stocks' data was downloaded.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-12 (drafted after her 2026-10-07 sign-off; reported by the candidate)",
+      "precondition_outcomes": {
+        "recorded": "2026-10-09, after download (64 files, Databento charge USD 2.34) and conversion.",
+        "i_ii": "PASS for all four stocks: 16/16 days converted; minimum trading-hours messages per day BYND 64,413, ZM 190,536, INTC 494,966, NFLX 332,651 (threshold 20,000).",
+        "iii": "PASS: positive median spreads; $0.01 tick for all four."
+      },
+      "results": {
+        "source": "results/qi_fair_value_{BYND,ZM,INTC,NFLX}.json, results/shallow_book_summary.{json,txt}",
+        "table": {
+          "AMZN": "beta 0.278 [0.256,0.298]; L1 depth $30.0k/side; spread 2 ticks; shift +0.111/-0.122; |S|/spread 0.061; IMMATERIAL",
+          "BYND": "beta 0.398 [0.359,0.439]; L1 depth $3.6k/side; spread 1 tick; shift +0.159/-0.175; |S|/spread 0.175; IMMATERIAL",
+          "ZM": "beta 0.236 [0.208,0.269]; L1 depth $9.0k/side; spread 2 ticks; shift +0.094/-0.104; |S|/spread 0.052; IMMATERIAL",
+          "INTC": "beta 0.454 [0.438,0.468]; L1 depth $73.9k/side; spread 1 tick; shift +0.182/-0.200; |S|/spread 0.200; IMMATERIAL",
+          "NFLX": "beta 1.091 [0.969,1.226]; L1 depth $31.9k/side; spread 29 ticks; shift +0.436/-0.480; |S|/spread 0.017; BORDERLINE"
+        },
+        "reading": "No stock is MATERIAL. Four of five are IMMATERIAL, including BYND, whose dollar depth is about 8x thinner than AMZN's. NFLX is BORDERLINE in ticks only because its tick is economically tiny (median spread 29 ticks): its shift is 1.7% of the spread, the smallest of the five on the pre-specified secondary measure. The H1 explanation therefore holds out of sample across a 20x range of dollar depth and both tick regimes; the null is not specific to AMZN's depth.",
+        "descriptive_not_preregistered": "Saturation sensitivity, added after the results and labelled as such: if a spoof pushed QI from neutral all the way to +/-1 (dQI = 1, beyond the forced attack's 0.42), the implied shift would be beta ticks: AMZN 0.28, BYND 0.40, ZM 0.24, INTC 0.45, NFLX 1.09 (3.8% of its spread). Every one-tick-spread stock stays below half a tick. Only flipping a book already at the opposite extreme (dQI = 2) could exceed half a tick on INTC or BYND."
+      }
+    },
+    {
+      "name": "dose_response_amendment_2026-10-09",
+      "date": "2026-10-09",
+      "status": "EXPLORATORY EXTENSION - NOT CONFIRMATORY",
+      "change": "No RL training and no change to any environment or agent. eval_forced_attack.py gains --inject-mult, which overrides the spoofer's inject_mult (injected volume per unit action, in multiples of best-quote depth; 2.0 in every v4 env) in the attack condition only, so the off condition still reproduces the production eval. One arm (baseline, the undefended H1 victim, v4 checkpoints at the pre-registered step), 20 seeds, bid side, --inject-scale 1.0 (maximal on every spoofed level), budget 1e10 (non-binding), inject_mult in {2, 10, 50, 200, 1000}: slurm_dose_response.sh, array 0-4.",
+      "motivation": "Carlini et al. 2019 (On Evaluating Adversarial Robustness, sec. 5.2) require that attack success rise with the perturbation budget and that an unbounded attack eventually succeed; otherwise an apparent robustness may be an evaluation artefact. The thesis's forced attack stops at inject_mult 2 and no tested attack moved Sharpe. The MM's depth inputs are volume / 1e4 with no clipping (mm_env.get_obs), so they grow linearly with inject_mult, while queue imbalance saturates at +/-1 (0.50, 0.83, 0.96, 0.99, 1.00 on a balanced book). The top rungs are therefore an out-of-distribution input attack, not a stronger economic signal. Either outcome is reported: harm at a high rung shows the evaluation can register harm and that the H1 null is specific to plausible spoof sizes; no harm at any rung shows the policy uses the book only through a bounded signal.",
+      "preconditions": "(i) The inject_mult 2 rung reproduces results/forced_attack_v4_bid.json per seed for the baseline arm, both sharpe_off and sharpe_forced (analysis.dose_response reproduction check, relative tolerance 1e-6); if it differs, no rung is interpreted. (ii) budget_exhausted_frac_forced is 0 for every seed at every rung; a rung where the budget binds is void and is rerun with a larger BUDGET. (iii) A smoke test (1 seed, inject_mult 1000) shows attack_rate 1, injection on the bid side only, and finite Sharpe, before the full ladder is submitted.",
+      "decision_rules": {
+        "primary": "Per rung, paired by seed: per-step Sharpe change (forced minus off), BCa 95% CI, sign-flip p, Holm over the five rungs. A rung is HARMED if Holm p < 0.05 and the mean change is negative. Ladder verdict: HARMED from m* if any rung is HARMED (m* = the smallest); NOT HARMED if no rung is HARMED and every rung's BCa lower bound exceeds -0.006 per step (the loss bound the thesis already reports at inject_mult 2); otherwise INCONCLUSIVE.",
+        "secondary": "Descriptive, never a gate: per-seed OLS slope of the per-step Sharpe change on log10(inject_mult) with BCa CI and sign-flip p over seeds; Sortino and CVaR(0.10) changes; behaviour changes (inventory_sd, quote_displacement); observed |queue imbalance| forced vs off.",
+        "implementation": "analysis/dose_response.py (tests/test_dose_response.py), written and tested on synthetic ladders before any rung was run."
+      },
+      "inference_status": "EXPLORATORY. Robustness-evaluation sanity check; no hypothesis H1-H4 verdict depends on it. The confirmatory result of record remains v3 (eval_1179095).",
+      "analysis_decisions_changed": "NONE for any pre-registered test.",
+      "candidate_sign_off": "drafted 2026-10-09, before any rung was run.",
+      "supervisor_sign_off": "APPROVED by Dr Wen on 2026-10-12 (reported by the candidate)",
+      "precondition_outcomes": {
+        "recorded": "2026-10-10, after Kaya array 119523 (smoke 119450_4).",
+        "i": "PASS: the inject_mult 2 rung reproduces results/forced_attack_v4_bid.json per seed, sharpe_off and sharpe_forced (MATCH, max diff 0).",
+        "ii": "PASS: budget_exhausted_frac_forced 0 at every rung; minimum budget_final_frac 0.963 (inject_mult 1000).",
+        "iii": "PASS: smoke test at inject_mult 1000 had attack_rate 1.0, bid-only injection (6.64e5 shares/step), finite Sharpe, and *_off MATCH."
+      },
+      "results": {
+        "source": "results/dose_response_m{2,10,50,200,1000}.{json,txt}; analysis: results/dose_response.{json,txt,png} (analysis/dose_response.py)",
+        "per_rung_per_step_sharpe_change": {
+          "2": "+0.00098 [-0.00052, +0.00249], Holm p 0.486",
+          "10": "-0.00241 [-0.00924, +0.00104], Holm p 0.486",
+          "50": "-0.01701 [-0.03248, -0.00778], Holm p 0.0165 (HARMED; 17/20 seeds negative)",
+          "200": "-0.01742 [-0.02408, -0.01039], Holm p 0.00085 (HARMED; 17/20 seeds negative)",
+          "1000": "-0.00842 [-0.01391, -0.00151], Holm p 0.0521"
+        },
+        "verdict": "HARMED from inject_mult 50 (pre-registered rule).",
+        "trend_descriptive": "-0.00509 per decade of inject_mult [-0.00701, -0.00271], sign-flip p 0.00043.",
+        "descriptive_not_preregistered": "Observed |QI| forced 0.55, 0.74, 0.89, 0.95, 0.99 (off 0.51). Quoted mid vs true mid 0.92, 0.97, 1.47, 2.39, 3.19 ticks (off 0.93), against at most 0.28 tick justified by |QI| = 1 (beta 0.278). Inventory s.d. 1.00, 1.01, 1.22, 2.50, 7.32 (off 0.98). Mean injection at 50x about 33,400 shares/step, roughly USD 7M against about USD 30k of genuine best-quote depth per side. Reading (interpretation, untested): harm comes from out-of-distribution depth inputs driving quotes past fair value, not from the imbalance signal. At 10x the CI reaches -0.009, so the 0.006 bound holds only up to 2x."
+      }
     }
-  ]
+  ],
+  "supervisor_sign_off": {
+    "by": "Dr Yuanji Wen",
+    "date": "2026-10-07",
+    "scope": "pre-registration and all amendments dated up to 2026-10-06",
+    "later_sign_offs": [
+      {
+        "date": "2026-10-12",
+        "scope": "shallow_book_beta_amendment_2026-10-09 and dose_response_amendment_2026-10-09"
+      }
+    ]
+  }
 }

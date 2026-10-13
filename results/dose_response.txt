@@ -1,0 +1,13 @@
+*** EXPLORATORY — dose-response / unbounded attack on the undefended MM (dose_response_amendment_2026-10-09) ***
+
+  mult  dSharpe/step               BCa 95% CI   Holm p   dInvSD  dQuoteDisp  |QI| on/off  budget
+     2      +0.00098 [-0.00052, +0.00249]    0.486   +0.017     -0.0003 0.552/0.507   1.000
+    10      -0.00241 [-0.00924, +0.00104]    0.486   +0.030     +0.0439 0.738/0.507   1.000
+    50      -0.01701 [-0.03248, -0.00778]   0.0165   +0.241     +0.5407 0.890/0.507   0.998
+   200      -0.01742 [-0.02408, -0.01039] 0.000849   +1.517     +1.4655 0.953/0.507   0.993
+  1000      -0.00842 [-0.01391, -0.00151]   0.0521   +6.334     +2.2672 0.985/0.507   0.963
+
+trend: per-seed slope of dSharpe/step per decade of inject_mult = -0.00509 [-0.00701, -0.00271], sign-flip p = 0.000429 (descriptive)
+reproduction of the existing forced run at inject_mult 2: MATCH
+
+VERDICT: HARMED from inject_mult 50

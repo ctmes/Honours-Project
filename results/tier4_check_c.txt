@@ -1,0 +1,6 @@
+=== WS10 (Tier 4) pre-registered checks ===
+[WS10b shuffled-label head]
+  verdict: eval file lacks one of ('adversarial', 'detection_noobs', 'shuffled_noobs')
+[WS10c recurrent MM]
+  clean recurrent_baseline_minus_baseline  diff=-0.00755 p=0.413 holm=0.826 inv_sd rec/mlp=1.61/0.98
+  clean recurrent_full_minus_full          diff=+0.00109 p=0.49 holm=0.826 inv_sd rec/mlp=3.82/2.01

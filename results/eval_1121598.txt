@@ -1,0 +1,56 @@
+*** ESTIMATION-ONLY (preregistration not signed off, or partial run) ***
+
+=== per-arm summaries (mean +/- sd over seeds) ===
+[full]
+  auroc                         0.5145 +/-       nan   median=     0.5145   n=1
+  cvar_off                      -360.4 +/-       nan   median=     -360.4   n=1
+  cvar_on                       -360.4 +/-       nan   median=     -360.4   n=1
+  inventory_sd_off               58.38 +/-       nan   median=      58.38   n=1
+  inventory_sd_on                58.38 +/-       nan   median=      58.38   n=1
+  peak_inventory_off               202 +/-       nan   median=        202   n=1
+  peak_inventory_on                202 +/-       nan   median=        202   n=1
+  quote_displacement_off           nan +/-       nan   median=        nan   n=0
+  quote_displacement_on            nan +/-       nan   median=        nan   n=0
+  quote_presence_off                 0 +/-       nan   median=          0   n=1
+  quote_presence_on                  0 +/-       nan   median=          0   n=1
+  regime_gap_off                 532.5 +/-       nan   median=      532.5   n=1
+  regime_gap_on                  532.5 +/-       nan   median=      532.5   n=1
+  sharpe_off                     15.94 +/-       nan   median=      15.94   n=1
+  sharpe_on                      15.94 +/-       nan   median=      15.94   n=1
+  softmin_sharpe_off        -3.812e+06 +/-       nan   median= -3.812e+06   n=1
+  softmin_sharpe_on         -3.812e+06 +/-       nan   median= -3.812e+06   n=1
+  sortino_highvol_off           -216.5 +/-       nan   median=     -216.5   n=1
+  sortino_highvol_on            -216.5 +/-       nan   median=     -216.5   n=1
+  sortino_lowvol_off               316 +/-       nan   median=        316   n=1
+  sortino_lowvol_on                316 +/-       nan   median=        316   n=1
+  sortino_off                    49.76 +/-       nan   median=      49.76   n=1
+  sortino_on                     49.76 +/-       nan   median=      49.76   n=1
+
+[as]
+  auroc                         0.4862 +/-       nan   median=     0.4862   n=1
+  cvar_off                       -83.6 +/-       nan   median=      -83.6   n=1
+  cvar_on                        -83.6 +/-       nan   median=      -83.6   n=1
+  inventory_sd_off               13.56 +/-       nan   median=      13.56   n=1
+  inventory_sd_on                13.56 +/-       nan   median=      13.56   n=1
+  peak_inventory_off             45.25 +/-       nan   median=      45.25   n=1
+  peak_inventory_on              45.25 +/-       nan   median=      45.25   n=1
+  quote_displacement_off         1.115 +/-       nan   median=      1.115   n=1
+  quote_displacement_on          1.115 +/-       nan   median=      1.115   n=1
+  quote_presence_off                 1 +/-       nan   median=          1   n=1
+  quote_presence_on                  1 +/-       nan   median=          1   n=1
+  regime_gap_off                 245.5 +/-       nan   median=      245.5   n=1
+  regime_gap_on                  245.5 +/-       nan   median=      245.5   n=1
+  sharpe_off                    -21.98 +/-       nan   median=     -21.98   n=1
+  sharpe_on                     -21.98 +/-       nan   median=     -21.98   n=1
+  softmin_sharpe_off        -1.127e+08 +/-       nan   median= -1.127e+08   n=1
+  softmin_sharpe_on         -1.127e+08 +/-       nan   median= -1.127e+08   n=1
+  sortino_highvol_off            107.5 +/-       nan   median=      107.5   n=1
+  sortino_highvol_on             107.5 +/-       nan   median=      107.5   n=1
+  sortino_lowvol_off            -138.1 +/-       nan   median=     -138.1   n=1
+  sortino_lowvol_on             -138.1 +/-       nan   median=     -138.1   n=1
+  sortino_off                    -15.3 +/-       nan   median=      -15.3   n=1
+  sortino_on                     -15.3 +/-       nan   median=      -15.3   n=1
+
+
+AUROC vs 0.5 [full]: mean=0.514 test=none p=nan (n=1)
+AUROC vs 0.5 [as]: mean=0.486 test=none p=nan (n=1)

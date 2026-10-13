@@ -42,6 +42,8 @@ SIDE_TO_DIR = {'B': 1, 'A': -1}   # Bid=buy=1, Ask=sell=-1
 PRICE_SCALE = 100_000      # lobster_price = databento_price // PRICE_SCALE
 DATABENTO_NAN_PRICE = 9223372036854775807   # INT64_MAX = invalid price
 
+TICKER = "AMZN"   # output file prefix; set by --ticker (shallow_book_beta_amendment_2026-10-09)
+
 
 # ---------------------------------------------------------------------------
 # Efficient timestamp conversion (cache eastern midnight per UTC day)
@@ -192,7 +194,7 @@ def write_day(date_str: str, msg_rows: list, ob_rows: list, out_dir: Path):
         return
     msg_arr = np.array(msg_rows)
     ob_arr  = np.array(ob_rows, dtype=np.int64)
-    fname   = f"AMZN_{date_str}_34200000_57600000"
+    fname   = f"{TICKER}_{date_str}_34200000_57600000"
     # Message CSV: time as float (9dp), remaining columns as plain integers
     msg_df = pd.DataFrame({
         0: msg_arr[:, 0],
@@ -410,7 +412,11 @@ def main():
     parser.add_argument('--sample', action='store_true', help='Print first 20 records and exit')
     parser.add_argument('--verify', action='store_true', help='Run JAX cross-check after conversion')
     parser.add_argument('--days',   type=int, default=0, help='Limit to first N trading days (0=all)')
+    parser.add_argument('--ticker', default='AMZN', help='Output file prefix (default AMZN)')
     args = parser.parse_args()
+
+    global TICKER
+    TICKER = args.ticker
 
     import databento as db
     dbn_path = Path(args.input)

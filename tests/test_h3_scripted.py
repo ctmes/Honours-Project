@@ -160,6 +160,33 @@ def test_h3m_secondary_uses_reference_file_and_scales(tmp_path):
     assert r2["secondary"]["tests"]["ask:auroc_gain"]["mean_diff"] == pytest.approx(0.3, abs=0.02)
 
 
-def test_h3m_refuses_swapped_sides(tmp_path):
-    with pytest.raises(SystemExit):
-        _run(tmp_path, _forced("ask", 0.8), _forced("bid", 0.8))
+def test_h3m_labels_follow_metadata_not_argument_position(tmp_path):
+    """Changed by h3m_generalisation_amendment_2026-10-06. The old guard REFUSED a
+    swapped pair, because labels were taken from the argument slot. Labels are now
+    read from each file's own `_meta.side`/`inject_scale`, so a swap is labelled
+    correctly instead of refused -- which is what lets a symmetric or sub-threshold
+    generalisation condition be analysed by the same pre-registered rule."""
+    r = _run(tmp_path, _forced("ask", 0.8), _forced("bid", 0.8))
+    assert set(r["primary"]["cells"]) == {"bid", "ask"}
+    assert r["primary"]["cells"]["ask"]["mean"] == pytest.approx(0.8, abs=0.02)
+    assert r["conditions"] == ["ask", "bid"]       # order follows the arguments
+    assert r["out_of_training_family"] == []
+
+
+def test_h3m_still_refuses_two_files_of_the_same_condition(tmp_path):
+    """The hazard the swap guard actually protected against: analysing one condition
+    twice as if it were both sides."""
+    with pytest.raises(SystemExit, match="same condition"):
+        _run(tmp_path, _forced("bid", 0.8), _forced("bid", 0.8))
+
+
+def test_h3m_flags_out_of_family_conditions(tmp_path):
+    both = _forced("bid", 0.8)
+    both["_meta"].update(side="both", inject_scale=1.0, h3m_in_training_family=False)
+    weak = _forced("ask", 0.8)
+    weak["_meta"].update(side="bid", inject_scale=0.1, h3m_in_training_family=False)
+    r = _run(tmp_path, both, weak)
+    assert r["conditions"] == ["both", "bid@0.1"]
+    assert r["out_of_training_family"] == ["both", "bid@0.1"]
+    from analysis.h3_material_check import format_text
+    assert "GENERALISATION TEST" in format_text(r)

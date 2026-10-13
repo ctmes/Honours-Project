@@ -1,0 +1,5 @@
+*** ESTIMATION-ONLY (preregistration not signed off, or partial run) ***
+
+
+AUROC vs 0.5 [full]: mean=0.539 test=wilcoxon p=0.5 (n=2)
+AUROC vs 0.5 [as]: mean=0.478 test=wilcoxon p=0.5 (n=2)

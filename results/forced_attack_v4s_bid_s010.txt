@@ -1,0 +1,32 @@
+*** EXPLORATORY — FORCED ONE-SIDED ATTACK (side=bid, scale=0.1), budget=1e+07. Not a co-trained adversary, not the confirmatory result. See docs/note_forced_attack_amendment.md and docs/note_h3m_generalisation.md (this attack is OUTSIDE the H3m scripted training family) ***
+
+=== per-arm means (forced vs off) ===
+[scripted_detection]
+  sharpe                     forced=    -1.393  off=    -1.761
+  sortino                    forced=    +23.74  off=    +23.12
+  cvar                       forced=    -5.393  off=    -5.401
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=    +133.9  off=        +0
+  mean_ask_volume_injected   forced=        +0  off=        +0
+  qi_absmean                 forced=   +0.4826  off=   +0.5075
+  qi_mean                    forced=   +0.0729  off=  -0.02492
+  budget_final_frac          forced=    0.9931
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced=   +0.4352  off=   +0.3974
+  det_auroc_forced_vs_off    mean=    0.5658  (RC3; chance = 0.5)
+
+=== RC3: detection AUROC, forced vs off, vs chance 0.5 (unadjusted; Holm over arm x side is applied after both sides are run) ===
+  scripted_detection n=20  mean=0.5658 d=+5.64 t         p=4.49e-16
+
+=== within-arm: forced vs off, paired by seed ===
+  scripted_detection sharpe   n=20  diff=  +0.3685 d=+0.107 wilcoxon  p=0.701
+  scripted_detection sortino  n=20  diff=  +0.6234 d=+0.125 wilcoxon  p=0.927
+  scripted_detection cvar     n=20  diff=+0.008974 d=+0.127 paired_t  p=0.576
+  (cross-arm DiD: python -m analysis.h1_attack_effect_check <out>.json --on-suffix _forced)
+
+--- reproduction check against results/forced_attack_v4s_bid.json (off condition) ---
+  scripted_detection sharpe_off         max|diff|=0  MATCH
+  scripted_detection sortino_off        max|diff|=0  MATCH
+  scripted_detection cvar_off           max|diff|=0  MATCH
+  scripted_detection inventory_sd_off   max|diff|=0  MATCH
+  (DIFFERS is expected only if --n-envs / --n-steps / --step differ from the reference run; otherwise this loop is not faithful to rollout.run_rollout and no forced number should be trusted)

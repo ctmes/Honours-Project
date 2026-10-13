@@ -150,20 +150,34 @@ def detection_shift_auroc(det_forced, det_off) -> float:
     return M.detection_auroc(probs, labels)
 
 
-def force_action(side: str, n_levels: int):
-    """Fixed maximal one-sided action in the adversary's own encoding.
+def force_action(side: str, n_levels: int, scale: float = 1.0):
+    """Fixed one-sided (or symmetric) action in the adversary's own encoding.
 
     spoofing_agent.action_to_injection reads a[:n_levels] as bid levels and
-    a[n_levels:] as ask levels, each clipped to [0, 1]; 1.0 on every level of one
-    side is the largest legal one-sided injection.
+    a[n_levels:] as ask levels, each clipped to [0, 1]; `scale` on every level of one
+    side is the largest legal injection on that side at that scale, and scale=1.0
+    with side in {bid, ask} is the maximal one-sided attack of the original grid.
+
+    side="both" injects the same amount on BOTH sides. check_adversary_lever.py
+    established on a synthetic fixture that a symmetric injection leaves
+    queue_imbalance exactly unchanged, so this is the attack a cost-free co-trained
+    adversary (sidedness 0.08) and the WS10a learned adversary (0.21-0.26) both
+    converged to. It is OUTSIDE the H3m scripted training family, which is
+    one-sided by construction (ippo_adversarial.scripted_injection_action), as is
+    any scale below that family's 0.25 floor.
     """
     import jax.numpy as jnp
+    if not 0.0 < float(scale) <= 1.0:
+        raise ValueError(f"inject scale must be in (0, 1], got {scale!r}")
+    s = float(scale)
     if side == "bid":
-        vec = [1.0] * n_levels + [0.0] * n_levels
+        vec = [s] * n_levels + [0.0] * n_levels
     elif side == "ask":
-        vec = [0.0] * n_levels + [1.0] * n_levels
+        vec = [0.0] * n_levels + [s] * n_levels
+    elif side == "both":
+        vec = [s] * (2 * n_levels)
     else:
-        raise ValueError(f"side must be 'bid' or 'ask', got {side!r}")
+        raise ValueError(f"side must be 'bid', 'ask' or 'both', got {side!r}")
     return jnp.asarray(vec, dtype=jnp.float32)
 
 
@@ -176,6 +190,19 @@ def set_budget_override(config: dict, budget: float) -> dict:
     if budget <= 0:
         raise ValueError(f"budget override must be positive, got {budget}")
     config["dict_of_agents_configs"]["Spoofing"]["budget_per_episode"] = float(budget)
+    return config
+
+
+def set_inject_mult(config: dict, mult: float) -> dict:
+    """Override the spoofer's inject_mult (injected volume per unit action, in multiples of
+    best-quote depth; 2.0 in every v4 env). Dose-response only
+    (dose_response_amendment_2026-10-09): mult > 2 is the "unbounded attack" sanity test of
+    Carlini et al. 2019 sec. 5.2. The MM's depth inputs are volume / 1e4 with no clip
+    (mm_env.get_obs), so they grow linearly with mult; queue_imbalance saturates at +/-1.
+    """
+    if mult <= 0:
+        raise ValueError(f"inject_mult override must be positive, got {mult}")
+    config["dict_of_agents_configs"]["Spoofing"]["inject_mult"] = float(mult)
     return config
 
 
@@ -320,7 +347,8 @@ def extra_metrics(arrays: dict, budget: float) -> dict:
 
 
 def evaluate_arm(arm, project, yaml_path, seeds, side, budget, n_envs, n_steps, step, ppy,
-                 override: bool = True, on_label: str = "forced"):
+                 override: bool = True, on_label: str = "forced",
+                 inject_scale: float = 1.0, inject_mult: float | None = None):
     """Return {metric_<on_label> / metric_off: np.array over seeds} for one arm.
 
     override=True (default, this script): the attack condition overwrites the
@@ -345,6 +373,10 @@ def evaluate_arm(arm, project, yaml_path, seeds, side, budget, n_envs, n_steps, 
         if cond == on_label:
             cfg = set_attack_mode(cfg, "on")
             cfg = set_budget_override(cfg, budget)
+            # Attack condition only: 'off' has gate 0, and leaving its env untouched
+            # keeps the reproduction check against the production eval exact.
+            if inject_mult is not None:
+                cfg = set_inject_mult(cfg, inject_mult)
         else:
             cfg = set_attack_mode(cfg, "off")
         env, nets, ts_template, cfg = build_eval(cfg, n_envs)
@@ -362,8 +394,13 @@ def evaluate_arm(arm, project, yaml_path, seeds, side, budget, n_envs, n_steps, 
         if cond == on_label and float(adv_cfg.budget_per_episode) != float(budget):
             raise SystemExit("budget override did not reach the built env "
                              f"({adv_cfg.budget_per_episode} != {budget})")
+        if (cond == on_label and inject_mult is not None
+                and float(adv_cfg.inject_mult) != float(inject_mult)):
+            raise SystemExit("inject_mult override did not reach the built env "
+                             f"({adv_cfg.inject_mult} != {inject_mult})")
 
-        forced = force_action(side, n_lv) if (cond == on_label and override) else None
+        forced = (force_action(side, n_lv, inject_scale)
+                  if (cond == on_label and override) else None)
         gate = 1.0 if cond == on_label else 0.0
         steps = int(n_steps) if n_steps is not None else int(cfg["NUM_STEPS"])
 
@@ -443,7 +480,20 @@ def main() -> int:
     ap.add_argument("--project-prefix", default="v4", choices=["v3", "v4"])
     ap.add_argument("--seeds", default="0",
                     help="seed indices, e.g. '0-19' (default: 0, a smoke test)")
-    ap.add_argument("--side", required=True, choices=["bid", "ask"])
+    ap.add_argument("--side", required=True, choices=["bid", "ask", "both"],
+                    help="'bid'/'ask' = one-sided (the original grid); 'both' = "
+                         "symmetric, which leaves queue_imbalance unchanged and is "
+                         "OUTSIDE the H3m one-sided training family")
+    ap.add_argument("--inject-scale", type=float, default=1.0,
+                    help="fraction of the maximum injected on every spoofed level "
+                         "(default 1.0 = the maximal attack). Values below 0.25 are "
+                         "below the H3m scripted training family's magnitude floor.")
+    ap.add_argument("--inject-mult", type=float, default=None,
+                    help="override the spoofer's inject_mult in the attack condition "
+                         "(default: the env's own value, 2.0 = 2x best-quote depth). "
+                         "Dose-response / unbounded-attack test only "
+                         "(dose_response_amendment_2026-10-09); raise --budget-override "
+                         "with it, since injected volume scales linearly")
     ap.add_argument("--budget-override", type=float, required=True,
                     help="injectable volume per episode, applied to every arm; "
                          "check budget_final_frac and raise it if the budget binds")
@@ -474,9 +524,29 @@ def main() -> int:
         raise SystemExit(f"unknown arm(s) {unknown}; choose from {list(ARMS) + list(EXTRA_ARMS)}")
     seeds = _parse_seeds(args.seeds)
 
-    banner = ("*** EXPLORATORY — FORCED MAXIMAL ONE-SIDED ATTACK (side=%s, budget=%g). Not a "
-              "co-trained adversary, not the confirmatory result. See "
-              "docs/note_forced_attack_amendment.md ***" % (args.side, args.budget_override))
+    if not 0.0 < args.inject_scale <= 1.0:
+        raise SystemExit(f"--inject-scale must be in (0, 1], got {args.inject_scale}")
+    if args.inject_mult is not None and args.inject_mult <= 0:
+        raise SystemExit(f"--inject-mult must be positive, got {args.inject_mult}")
+    # 2.0 is the inject_mult of every v4 env; any other value is a dose-response run.
+    dose = args.inject_mult is not None and args.inject_mult != 2.0
+    in_family = args.side in ("bid", "ask") and args.inject_scale >= 0.25 and not dose
+    kind = ("FORCED %s ATTACK (side=%s, scale=%g%s)"
+            % ("MAXIMAL ONE-SIDED" if (in_family and args.inject_scale == 1.0)
+               else ("ONE-SIDED" if args.side != "both" else "SYMMETRIC"),
+               args.side, args.inject_scale,
+               "" if args.inject_mult is None else ", inject_mult=%g" % args.inject_mult))
+    if dose:
+        note = (" and preregistration.json -> dose_response_amendment_2026-10-09 "
+                "(DOSE-RESPONSE: inject_mult differs from the env's 2.0)")
+    elif not in_family:
+        note = (" and docs/note_h3m_generalisation.md "
+                "(this attack is OUTSIDE the H3m scripted training family)")
+    else:
+        note = ""
+    banner = ("*** EXPLORATORY — %s, budget=%g. Not a co-trained adversary, not the "
+              "confirmatory result. See docs/note_forced_attack_amendment.md%s ***"
+              % (kind, args.budget_override, note))
     print(banner)
     print(f"arms {arms}  seeds {seeds}  step {step}  n_envs {args.n_envs}  prefix {pfx}\n")
 
@@ -485,7 +555,8 @@ def main() -> int:
         project, yaml_path = resolve_arm(arm, pfx)
         per_seed[arm] = evaluate_arm(arm, project, yaml_path, seeds, args.side,
                                      args.budget_override, args.n_envs, args.n_steps,
-                                     step, ppy)
+                                     step, ppy, inject_scale=args.inject_scale,
+                                     inject_mult=args.inject_mult)
 
     from gymnax_exchange.jaxrl.MARL.adversarial_eval.aggregate import (
         compare_configs, summarize_seeds,
@@ -502,14 +573,25 @@ def main() -> int:
                 report[label] = res
                 report["holm"][label] = holm_adjust({m: r.p_value for m, r in res.items()})
     report["_meta"] = {
-        "attack_construction": "forced_one_sided_override",
+        "attack_construction": ("forced_symmetric_override" if args.side == "both"
+                                else "forced_one_sided_override"),
         "side": args.side, "budget_override": args.budget_override,
+        "inject_scale": args.inject_scale,
+        # None = the env's own inject_mult (2.0 in every v4 env).
+        "inject_mult": args.inject_mult,
+        # One-sided at >= 0.25 of max is the H3m scripted training family
+        # (ippo_adversarial.scripted_injection_action); anything else is out of family
+        # and must be analysed as a generalisation test, not as an in-family one.
+        "h3m_in_training_family": bool(in_family),
         "project_prefix": pfx, "arms": arms, "seeds": seeds,
         "checkpoint_step": step, "n_envs": args.n_envs, "n_steps": args.n_steps,
         "periods_per_year": ppy,
         "signed_off": False, "confirmatory": False, "exploratory": True,
         "partial_run": True,
-        "amendment": "preregistration.json -> amendments -> forced_worst_case_attack_amendment",
+        "amendment": ("preregistration.json -> amendments -> "
+                      + ("dose_response_amendment_2026-10-09" if dose
+                         else "forced_worst_case_attack_amendment" if in_family
+                         else "h3m_generalisation_amendment_2026-10-06")),
     }
 
     lines = [banner, "", "=== per-arm means (forced vs off) ==="]

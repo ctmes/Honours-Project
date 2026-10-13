@@ -1,0 +1,16 @@
+=== RC4 encoder rank (fixed observation set) ===
+  baseline         [no-head] erank=  7.184 (sd 0.551)  srank=  14.2  dead=0.358
+  adversarial      [no-head] erank=  7.154 (sd 0.567)  srank=  14.4  dead=0.348
+  full             [head   ] erank=  2.301 (sd 0.411)  srank=   8.9  dead=0.439
+  detection        [head   ] erank=  2.489 (sd 0.425)  srank=   9.3  dead=0.445
+  regime           [no-head] erank=  7.390 (sd 0.536)  srank=  14.5  dead=0.360
+  unconstrained    [no-head] erank=  7.145 (sd 0.572)  srank=  14.6  dead=0.350
+  detection_noobs  [head   ] erank=  2.495 (sd 0.348)  srank=   9.3  dead=0.446
+
+=== RC4 primary: minimal pairs on erank_fixed ===
+  detection_vs_adversarial         diff=  -4.665 d=-6.27 BCa=[-5.006, -4.367] p_signflip=1.91e-06 p_holm=5.72e-06
+  full_vs_regime                   diff=  -5.089 d=-7.95 BCa=[-5.352, -4.794] p_signflip=1.91e-06 p_holm=5.72e-06
+  detection_noobs_vs_adversarial   diff=  -4.660 d=-7.54 BCa=[-4.921, -4.394] p_signflip=1.91e-06 p_holm=5.72e-06
+  verdict: NOT SUPPORTED: no minimal pair shows a significantly higher-rank head arm; the collapse mechanism is not shown to be feature-rank loss
+
+  descriptive: Spearman(erank, inventory_sd_off) = -0.719 (n=140, p=1.49e-23)

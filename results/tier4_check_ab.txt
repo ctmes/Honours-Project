@@ -1,0 +1,25 @@
+=== WS10 (Tier 4) pre-registered checks ===
+[WS10a learned optimal attack]
+  within baseline     sharpe   diff=+0.00078 BCa=[-0.00025,+0.00200] p=0.219 holm=0.656
+  within adversarial  sharpe   diff=-0.00056 BCa=[-0.00259,+0.00045] p=0.527 holm=1
+  within full         sharpe   diff=+0.00006 BCa=[-0.00019,+0.00031] p=0.644 holm=1
+  within baseline     sortino  diff=+0.00107 BCa=[-0.00030,+0.00257] p=0.187 holm=0.56
+  within adversarial  sortino  diff=-0.00094 BCa=[-0.00324,+0.00037] p=0.342 holm=0.685
+  within full         sortino  diff=+0.00012 BCa=[-0.00025,+0.00050] p=0.556 holm=0.685
+  adversary baseline     sidedness=0.261 QI shift=-0.034
+  adversary adversarial  sidedness=0.211 QI shift=+0.054
+  adversary full         sidedness=0.207 QI shift=+0.013
+  DiD full-baseline sharpe   diff=-0.00072 p=0.275 holm=0.516
+  DiD full-baseline sortino  diff=-0.00095 p=0.258 holm=0.516
+  verdict: H1 PREMISE FAILS under the learned optimal attack: the undefended baseline is not significantly degraded (strongest null available)
+[WS10b shuffled-label head]
+  H_minus_B:sharpe_off             diff=+0.01695 p=2.67e-05 holm=8.01e-05
+  H_minus_B:inventory_sd_off       diff=+1.15468 p=1.91e-06 holm=7.63e-06
+  H_minus_G:sharpe_off             diff=-0.00092 p=0.554 holm=1
+  H_minus_G:inventory_sd_off       diff=+0.15665 p=0.545 holm=1
+  verdict: REGULARISATION: shuffled labels reproduce the auxiliary-loss benefit; label content is not needed
+[WS10c recurrent MM]
+  forced DiD bid:recurrent_baseline_minus_baseline diff=-0.00027 p=0.893 holm=1
+  forced DiD bid:recurrent_full_minus_full  diff=-0.00005 p=0.811 holm=1
+  forced DiD ask:recurrent_baseline_minus_baseline diff=-0.00025 p=0.883 holm=1
+  forced DiD ask:recurrent_full_minus_full  diff=+0.00044 p=0.439 holm=1

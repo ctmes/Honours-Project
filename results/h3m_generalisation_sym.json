@@ -1,0 +1,34 @@
+{
+  "primary": {
+    "cells": {
+      "both": {
+        "n": 20,
+        "mean": 0.9504055477487121,
+        "bca_low": 0.9464017431011112,
+        "bca_high": 0.9543885079295769,
+        "test": "t",
+        "p": 1.1609054788034798e-33,
+        "p_sign_flip": 1.9073486328125e-06,
+        "cohens_d": 48.2054274037548,
+        "det_prob_mean_forced": 0.8295022189617157,
+        "det_prob_mean_off": 0.3974395662546158,
+        "p_holm": 1.1609054788034798e-33,
+        "verdict": "DETECTS"
+      }
+    },
+    "overall": "SUPPORTED",
+    "n_conditions": 1
+  },
+  "secondary": {
+    "tests": {},
+    "clean_means": {}
+  },
+  "off_consistent_across_sides": null,
+  "conditions": [
+    "both"
+  ],
+  "out_of_training_family": [
+    "both"
+  ],
+  "rule": "per condition: mean AUROC >= 0.60 & Holm(2) p < 0.05 -> DETECTS; CI in [0.45,0.55] -> CANNOT DETECT; both DETECT -> SUPPORTED (for the attack family tested)"
+}

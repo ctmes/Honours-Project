@@ -1,0 +1,42 @@
+=== Progression gate and H2, applied to every arm (POST-HOC / EXPLORATORY) ===
+  source: results/eval_17313.json + results/forced_attack_v4s_bid.json
+  POST-HOC / EXPLORATORY -- the gate was pre-registered on the baseline arm only and H2 on (full, adversarial) only; every other arm here is a post-hoc application of the same rule. No p-value in this file is a confirmatory significance claim.
+  extra: scripted_detection: clean metrics folded in from an extra file
+
+--- gate per arm (sharpe/sortino margin 0.5, inv_sd factor 2.0; clean data) ---
+  [of record, baseline only] passed=False
+  baseline               sharpe   -30.256 vs   +4.604 NO  | sortino   -16.396 vs  +17.473 NO  | invSD  0.984 <= 16.341 ok  || FAIL
+  adversarial            sharpe   -38.248 vs   +4.604 NO  | sortino   -29.050 vs  +17.473 NO  | invSD  0.940 <= 16.341 ok  || FAIL
+  detection              sharpe   +21.597 vs   +4.604 ok  | sortino   +56.029 vs  +17.473 ok  | invSD  1.750 <= 16.341 ok  || PASS
+  regime                 sharpe   -24.496 vs   +4.604 NO  | sortino    -8.025 vs  +17.473 NO  | invSD  1.084 <= 16.341 ok  || FAIL
+  full                   sharpe   +18.194 vs   +4.604 ok  | sortino   +50.940 vs  +17.473 ok  | invSD  2.008 <= 16.341 ok  || PASS
+  unconstrained          sharpe   -24.595 vs   +4.604 NO  | sortino   -12.930 vs  +17.473 NO  | invSD  1.059 <= 16.341 ok  || FAIL
+  detection_noobs        sharpe   +20.590 vs   +4.604 ok  | sortino   +53.135 vs  +17.473 ok  | invSD  1.938 <= 16.341 ok  || PASS
+  scripted_detection     sharpe    -1.761 vs   +4.604 NO  | sortino   +23.115 vs  +17.473 ok  | invSD  1.340 <= 16.341 ok  || FAIL
+
+--- paired vs the A-S benchmark (per-step units; Holm over arm x metric) ---
+  baseline:sharpe_off                arm=-0.00919 as=+0.00140 diff=-0.01059 BCa=[-0.01761,-0.00523] d=-0.73 p=0.00391 holm=0.0438 p_sf=0.00175  BELOW A-S
+  baseline:sortino_off               arm=-0.00498 as=+0.00531 diff=-0.01029 BCa=[-0.02065,-0.00310] d=-0.51 p=0.0296 holm=0.24 p_sf=0.0276  n.s.
+  adversarial:sharpe_off             arm=-0.01162 as=+0.00140 diff=-0.01302 BCa=[-0.02509,-0.00619] d=-0.62 p=0.0266 holm=0.24 p_sf=0.00236  n.s.
+  adversarial:sortino_off            arm=-0.00883 as=+0.00531 diff=-0.01413 BCa=[-0.02960,-0.00486] d=-0.51 p=0.123 holm=0.615 p_sf=0.0226  n.s.
+  detection:sharpe_off               arm=+0.00656 as=+0.00140 diff=+0.00516 BCa=[+0.00201,+0.00794] d=+0.74 p=0.00365 holm=0.0438 p_sf=0.00456  BEATS A-S
+  detection:sortino_off              arm=+0.01702 as=+0.00531 diff=+0.01171 BCa=[+0.00639,+0.01611] d=+1.03 p=0.00019 holm=0.00304 p_sf=0.000402  BEATS A-S
+  regime:sharpe_off                  arm=-0.00744 as=+0.00140 diff=-0.00884 BCa=[-0.02152,-0.00285] d=-0.46 p=0.0296 holm=0.24 p_sf=0.0265  n.s.
+  regime:sortino_off                 arm=-0.00244 as=+0.00531 diff=-0.00775 BCa=[-0.02267,+0.00060] d=-0.31 p=0.368 holm=1 p_sf=0.193  n.s.
+  full:sharpe_off                    arm=+0.00553 as=+0.00140 diff=+0.00413 BCa=[+0.00094,+0.00722] d=+0.57 p=0.0205 holm=0.205 p_sf=0.021  n.s.
+  full:sortino_off                   arm=+0.01548 as=+0.00531 diff=+0.01017 BCa=[+0.00465,+0.01555] d=+0.81 p=0.00191 holm=0.0267 p_sf=0.00217  BEATS A-S
+  unconstrained:sharpe_off           arm=-0.00747 as=+0.00140 diff=-0.00887 BCa=[-0.02035,-0.00297] d=-0.48 p=0.0441 holm=0.264 p_sf=0.0241  n.s.
+  unconstrained:sortino_off          arm=-0.00393 as=+0.00531 diff=-0.00924 BCa=[-0.02271,-0.00122] d=-0.39 p=0.189 holm=0.757 p_sf=0.0898  n.s.
+  detection_noobs:sharpe_off         arm=+0.00626 as=+0.00140 diff=+0.00486 BCa=[+0.00199,+0.00721] d=+0.80 p=0.00208 holm=0.027 p_sf=0.00287  BEATS A-S
+  detection_noobs:sortino_off        arm=+0.01614 as=+0.00531 diff=+0.01083 BCa=[+0.00568,+0.01511] d=+1.00 p=0.000263 holm=0.00394 p_sf=0.000513  BEATS A-S
+  scripted_detection:sharpe_off      arm=-0.00054 as=+0.00140 diff=-0.00193 BCa=[-0.00892,+0.00268] d=-0.15 p=0.784 holm=1 p_sf=0.545  n.s.
+  scripted_detection:sortino_off     arm=+0.00702 as=+0.00531 diff=+0.00171 BCa=[-0.00827,+0.00814] d=+0.09 p=0.349 holm=1 p_sf=0.701  n.s.
+
+--- H2 one-sided non-inferiority vs baseline (holm_within_contrast, as pre-registered) ---
+  adversarial            sortino_off: diff=  -12.65 p=0.7602 holm=1  sharpe_off: diff=   -7.99 p=0.7073 holm=1  -> not shown
+  detection              sortino_off: diff=  +72.43 p=7.408e-06 holm=1.482e-05  sharpe_off: diff=  +51.85 p=1.02e-05 holm=1.482e-05  -> NON-INFERIOR
+  regime                 sortino_off: diff=   +8.37 p=0.3402 holm=0.6803  sharpe_off: diff=   +5.76 p=0.3535 holm=0.6803  -> not shown
+  full                   sortino_off: diff=  +67.34 p=0.0001117 holm=0.0002233  sharpe_off: diff=  +48.45 p=0.0001157 holm=0.0002233  -> NON-INFERIOR
+  unconstrained          sortino_off: diff=   +3.47 p=0.4283 holm=0.7164  sharpe_off: diff=   +5.66 p=0.3582 holm=0.7164  -> not shown
+  detection_noobs        sortino_off: diff=  +69.53 p=1.35e-05 holm=2.699e-05  sharpe_off: diff=  +50.85 p=1.392e-05 holm=2.699e-05  -> NON-INFERIOR
+  scripted_detection     sortino_off: diff=  +39.51 p=0.002814 holm=0.005327  sharpe_off: diff=  +28.49 p=0.002663 holm=0.005327  -> NON-INFERIOR

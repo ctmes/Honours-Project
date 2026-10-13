@@ -1,0 +1,36 @@
+{
+  "ws10b": {
+    "skipped": "eval file lacks one of ('adversarial', 'detection_noobs', 'shuffled_noobs')"
+  },
+  "ws10c": {
+    "clean_performance": {
+      "recurrent_baseline_minus_baseline": {
+        "n": 20,
+        "mean_diff": -0.007553976575740094,
+        "bca_low": -0.031217265027984782,
+        "bca_high": 0.0026921512057787953,
+        "p": 0.4132099151611328,
+        "inventory_sd_off": {
+          "recurrent": 1.6121197393709192,
+          "mlp": 0.9836902263934567
+        },
+        "mlp_source": "--mlp-ref",
+        "p_holm": 0.8264198303222656
+      },
+      "recurrent_full_minus_full": {
+        "n": 20,
+        "mean_diff": 0.0010891556007449493,
+        "bca_low": -0.001646773232613948,
+        "bca_high": 0.004217455198753401,
+        "p": 0.4903736114501953,
+        "inventory_sd_off": {
+          "recurrent": 3.818286388845369,
+          "mlp": 2.0079789317907313
+        },
+        "mlp_source": "--mlp-ref",
+        "p_holm": 0.8264198303222656
+      }
+    },
+    "robustness_did": {}
+  }
+}

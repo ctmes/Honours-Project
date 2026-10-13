@@ -1,0 +1,50 @@
+{
+  "primary": {
+    "cells": {
+      "bid@0.1": {
+        "n": 20,
+        "mean": 0.5657917255673615,
+        "bca_low": 0.5607260330461128,
+        "bca_high": 0.5705114906913396,
+        "test": "t",
+        "p": 4.493723915933989e-16,
+        "p_sign_flip": 1.9073486328125e-06,
+        "cohens_d": 5.641882195313388,
+        "det_prob_mean_forced": 0.4352489531040192,
+        "det_prob_mean_off": 0.3974395662546158,
+        "p_holm": 4.493723915933989e-16,
+        "verdict": "INCONCLUSIVE"
+      },
+      "ask@0.1": {
+        "n": 20,
+        "mean": 0.5751435880210947,
+        "bca_low": 0.5701711480261177,
+        "bca_high": 0.5795651356427484,
+        "test": "t",
+        "p": 1.0230017457239252e-17,
+        "p_sign_flip": 1.9073486328125e-06,
+        "cohens_d": 6.916703473970479,
+        "det_prob_mean_forced": 0.4415387615561485,
+        "det_prob_mean_off": 0.3974395662546158,
+        "p_holm": 2.0460034914478505e-17,
+        "verdict": "INCONCLUSIVE"
+      }
+    },
+    "overall": "INCONCLUSIVE",
+    "n_conditions": 2
+  },
+  "secondary": {
+    "tests": {},
+    "clean_means": {}
+  },
+  "off_consistent_across_sides": true,
+  "conditions": [
+    "bid@0.1",
+    "ask@0.1"
+  ],
+  "out_of_training_family": [
+    "bid@0.1",
+    "ask@0.1"
+  ],
+  "rule": "per condition: mean AUROC >= 0.60 & Holm(2) p < 0.05 -> DETECTS; CI in [0.45,0.55] -> CANNOT DETECT; both DETECT -> SUPPORTED (for the attack family tested)"
+}

@@ -1,0 +1,40 @@
+*** ESTIMATION-ONLY (exploratory version, prereg not signed off, or partial run) ***
+
+=== per-arm summaries (mean +/- sd over seeds) ===
+[full]
+  auroc                         0.5007 +/-   0.01129   median=     0.5071   n=3
+  cvar_off                       -11.6 +/-     6.673   median=     -8.351   n=3
+  cvar_on                        -11.6 +/-     6.673   median=     -8.351   n=3
+  injected_volume_per_attack_off           0 +/-         0   median=          0   n=3
+  injected_volume_per_attack_on       3.614 +/-     2.922   median=      2.402   n=3
+  inventory_sd_off               2.037 +/-    0.4033   median=      1.839   n=3
+  inventory_sd_on                2.037 +/-    0.4035   median=      1.839   n=3
+  mean_ask_volume_injected_off           0 +/-         0   median=          0   n=3
+  mean_ask_volume_injected_on       1.625 +/-     1.419   median=      1.146   n=3
+  mean_attack_rate_off               0 +/-         0   median=          0   n=3
+  mean_attack_rate_on           0.9996 +/- 0.0001536   median=     0.9996   n=3
+  mean_bid_volume_injected_off           0 +/-         0   median=          0   n=3
+  mean_bid_volume_injected_on       1.988 +/-     1.509   median=      1.255   n=3
+  mean_injected_volume_off           0 +/-         0   median=          0   n=3
+  mean_injected_volume_on        3.613 +/-     2.921   median=      2.401   n=3
+  mean_injection_asymmetry_off         nan +/-       nan   median=        nan   n=0
+  mean_injection_asymmetry_on       0.528 +/-    0.0246   median=     0.5209   n=3
+  peak_inventory_off             7.724 +/-     3.474   median=      5.797   n=3
+  peak_inventory_on              7.719 +/-     3.479   median=      5.797   n=3
+  quote_displacement_off        0.8886 +/-   0.02345   median=     0.9006   n=3
+  quote_displacement_on         0.8886 +/-   0.02347   median=     0.9006   n=3
+  quote_presence_off                 1 +/-         0   median=          1   n=3
+  quote_presence_on                  1 +/-         0   median=          1   n=3
+  regime_gap_off                  73.2 +/-     58.03   median=      59.27   n=3
+  regime_gap_on                  73.06 +/-     58.08   median=      58.86   n=3
+  sharpe_off                    -7.209 +/-     10.98   median=     -3.131   n=3
+  sharpe_on                     -7.237 +/-     10.97   median=     -3.214   n=3
+  sortino_highvol_off             20.6 +/-     68.52   median=     -11.32   n=3
+  sortino_highvol_on              20.6 +/-     68.52   median=     -11.32   n=3
+  sortino_lowvol_off             2.511 +/-     43.05   median=     -2.743   n=3
+  sortino_lowvol_on              2.375 +/-     42.84   median=     -2.743   n=3
+  sortino_off                    10.34 +/-     27.58   median=        7.2   n=3
+  sortino_on                     10.29 +/-     27.58   median=      7.072   n=3
+
+
+AUROC vs 0.5 [full]: mean=0.501 test=wilcoxon p=1 (n=3)

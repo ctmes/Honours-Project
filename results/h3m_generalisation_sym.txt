@@ -1,0 +1,4 @@
+=== H3m: detection head trained on material attacks, forced attack (EXPLORATORY) ===
+  !! GENERALISATION TEST: condition(s) both are OUTSIDE the scripted one-sided training family. A DETECTS verdict here is evidence of generalisation; a CANNOT DETECT verdict bounds H3m to its training family.
+  both AUROC=0.9504 BCa=[0.9464, 0.9544] p=1.16e-33 p_holm=1.16e-33 p_sf=1.91e-06 det_prob forced/off=0.8295/0.3974  -> DETECTS
+  H3m: SUPPORTED

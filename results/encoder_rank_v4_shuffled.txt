@@ -1,0 +1,8 @@
+=== RC4 encoder rank (fixed observation set) ===
+  adversarial      [no-head] erank=  7.154 (sd 0.567)  srank=  14.4  dead=0.348
+  detection_noobs  [head   ] erank=  2.495 (sd 0.348)  srank=   9.3  dead=0.446
+  shuffled_noobs   [head   ] erank=  2.443 (sd 0.328)  srank=   8.9  dead=0.481
+
+=== RC4 primary: minimal pairs on erank_fixed ===
+  detection_noobs_vs_adversarial   diff=  -4.660 d=-7.54 BCa=[-4.921, -4.394] p_signflip=1.91e-06 p_holm=1.91e-06
+  verdict: INCOMPLETE: not all three minimal pairs were evaluated

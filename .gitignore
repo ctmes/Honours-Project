@@ -127,3 +127,6 @@ docs/
 
 # Thesis report material (Overleaf drafts, bib, report documents) - kept out of git
 report/
+
+# Thesis analysis package (figures/tables from eval JSON) - kept out of git
+analysis/

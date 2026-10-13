@@ -1,0 +1,70 @@
+*** EXPLORATORY — FORCED MAXIMAL ONE-SIDED ATTACK (side=ask, budget=1e+07). Not a co-trained adversary, not the confirmatory result. See docs/note_forced_attack_amendment.md ***
+
+=== per-arm means (forced vs off) ===
+[baseline]
+  sharpe                     forced=    -31.32  off=    -30.26
+  sortino                    forced=    -17.34  off=     -16.4
+  cvar                       forced=    -4.407  off=    -4.306
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1483  off=        +0
+  qi_absmean                 forced=   +0.5714  off=   +0.5073
+  qi_mean                    forced=     -0.44  off=  -0.02437
+  budget_final_frac          forced=    0.9241
+  budget_exhausted_frac      forced=         0
+[full]
+  sharpe                     forced=    +16.84  off=    +18.19
+  sortino                    forced=     +48.9  off=    +50.94
+  cvar                       forced=    -8.548  off=    -8.537
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1479  off=        +0
+  qi_absmean                 forced=   +0.5731  off=   +0.5111
+  qi_mean                    forced=   -0.4405  off=  -0.02563
+  budget_final_frac          forced=    0.9243
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced=  +0.02978  off=   +0.0297
+  det_auroc_forced_vs_off    mean=    0.5037  (RC3; chance = 0.5)
+[recurrent_baseline]
+  sharpe                     forced=    -57.02  off=    -55.12
+  sortino                    forced=    -58.33  off=    -53.56
+  cvar                       forced=    -13.75  off=    -13.63
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1477  off=        +0
+  qi_absmean                 forced=   +0.5729  off=   +0.5093
+  qi_mean                    forced=   -0.4398  off=  -0.02489
+  budget_final_frac          forced=    0.9244
+  budget_exhausted_frac      forced=         0
+[recurrent_full]
+  sharpe                     forced=    +21.88  off=    +21.78
+  sortino                    forced=    +51.31  off=    +51.24
+  cvar                       forced=    -16.64  off=    -16.69
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=        +0  off=        +0
+  mean_ask_volume_injected   forced=     +1452  off=        +0
+  qi_absmean                 forced=   +0.5802  off=   +0.5282
+  qi_mean                    forced=   -0.4368  off=  -0.02485
+  budget_final_frac          forced=    0.9257
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced= +0.009118  off= +0.009142
+  det_auroc_forced_vs_off    mean=     0.497  (RC3; chance = 0.5)
+
+=== RC3: detection AUROC, forced vs off, vs chance 0.5 (unadjusted; Holm over arm x side is applied after both sides are run) ===
+  full             n=20  mean=0.5037 d=+0.195 t         p=0.393
+  recurrent_full   n=20  mean=0.4970 d=-0.261 t         p=0.258
+
+=== within-arm: forced vs off, paired by seed ===
+  baseline         sharpe   n=20  diff=   -1.066 d=-0.0626 wilcoxon  p=0.498
+  baseline         sortino  n=20  diff=  -0.9418 d=-0.0471 wilcoxon  p=0.648
+  baseline         cvar     n=20  diff=  -0.1011 d=-0.351 wilcoxon  p=0.143
+  full             sharpe   n=20  diff=   -1.357 d=-0.21 wilcoxon  p=0.811
+  full             sortino  n=20  diff=    -2.04 d=-0.212 wilcoxon  p=0.711
+  full             cvar     n=20  diff= -0.01112 d=-0.0545 wilcoxon  p=0.711
+  recurrent_baseline sharpe   n=20  diff=   -1.904 d=-0.126 paired_t  p=0.58
+  recurrent_baseline sortino  n=20  diff=   -4.771 d=-0.209 paired_t  p=0.361
+  recurrent_baseline cvar     n=20  diff=  -0.1186 d=-0.197 wilcoxon  p=0.622
+  recurrent_full   sharpe   n=20  diff=  +0.1041 d=+0.0556 wilcoxon  p=0.893
+  recurrent_full   sortino  n=20  diff= +0.07821 d=+0.0268 wilcoxon  p=0.893
+  recurrent_full   cvar     n=20  diff= +0.05609 d=+0.363 wilcoxon  p=0.0679
+  (cross-arm DiD: python -m analysis.h1_attack_effect_check <out>.json --on-suffix _forced)

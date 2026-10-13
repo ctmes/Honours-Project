@@ -1,0 +1,60 @@
+*** ESTIMATION-ONLY (preregistration not signed off, or partial run) ***
+
+=== per-arm summaries (mean +/- sd over seeds) ===
+[full]
+  auroc                         0.5393 +/-   0.03519   median=     0.5393   n=2
+  cvar_off                      -291.7 +/-      97.1   median=     -291.7   n=2
+  cvar_on                       -291.7 +/-      97.1   median=     -291.7   n=2
+  inventory_sd_off               53.93 +/-     6.285   median=      53.93   n=2
+  inventory_sd_on                53.93 +/-     6.285   median=      53.93   n=2
+  mean_attack_rate_off               0 +/-         0   median=          0   n=2
+  mean_attack_rate_on                1 +/-         0   median=          1   n=2
+  peak_inventory_off             191.1 +/-     15.38   median=      191.1   n=2
+  peak_inventory_on              191.1 +/-     15.38   median=      191.1   n=2
+  quote_displacement_off           nan +/-       nan   median=        nan   n=0
+  quote_displacement_on            nan +/-       nan   median=        nan   n=0
+  quote_presence_off                 0 +/-         0   median=          0   n=2
+  quote_presence_on                  0 +/-         0   median=          0   n=2
+  regime_gap_off                 269.8 +/-     371.6   median=      269.8   n=2
+  regime_gap_on                  269.8 +/-     371.6   median=      269.8   n=2
+  sharpe_off                     38.71 +/-      32.2   median=      38.71   n=2
+  sharpe_on                      38.71 +/-      32.2   median=      38.71   n=2
+  softmin_sharpe_off        -1.011e+08 +/- 1.376e+08   median= -1.011e+08   n=2
+  softmin_sharpe_on         -1.011e+08 +/- 1.376e+08   median= -1.011e+08   n=2
+  sortino_highvol_off           -53.78 +/-     230.1   median=     -53.78   n=2
+  sortino_highvol_on            -53.78 +/-     230.1   median=     -53.78   n=2
+  sortino_lowvol_off               216 +/-     141.4   median=        216   n=2
+  sortino_lowvol_on                216 +/-     141.4   median=        216   n=2
+  sortino_off                    81.12 +/-     44.35   median=      81.12   n=2
+  sortino_on                     81.12 +/-     44.35   median=      81.12   n=2
+
+[as]
+  auroc                         0.4776 +/-   0.01215   median=     0.4776   n=2
+  cvar_off                      -55.25 +/-     40.09   median=     -55.25   n=2
+  cvar_on                       -55.25 +/-     40.09   median=     -55.25   n=2
+  inventory_sd_off               10.72 +/-     4.013   median=      10.72   n=2
+  inventory_sd_on                10.72 +/-     4.013   median=      10.72   n=2
+  mean_attack_rate_off               0 +/-         0   median=          0   n=2
+  mean_attack_rate_on                1 +/-         0   median=          1   n=2
+  peak_inventory_off                33 +/-     17.32   median=         33   n=2
+  peak_inventory_on                 33 +/-     17.32   median=         33   n=2
+  quote_displacement_off        0.9664 +/-    0.2094   median=     0.9664   n=2
+  quote_displacement_on         0.9664 +/-    0.2094   median=     0.9664   n=2
+  quote_presence_off                 1 +/-         0   median=          1   n=2
+  quote_presence_on                  1 +/-         0   median=          1   n=2
+  regime_gap_off                 218.4 +/-     38.39   median=      218.4   n=2
+  regime_gap_on                  218.4 +/-     38.39   median=      218.4   n=2
+  sharpe_off                    -6.856 +/-     21.39   median=     -6.856   n=2
+  sharpe_on                     -6.856 +/-     21.39   median=     -6.856   n=2
+  softmin_sharpe_off        -6.173e+07 +/- 7.208e+07   median= -6.173e+07   n=2
+  softmin_sharpe_on         -6.173e+07 +/- 7.208e+07   median= -6.173e+07   n=2
+  sortino_highvol_off            15.73 +/-     129.7   median=      15.73   n=2
+  sortino_highvol_on             15.73 +/-     129.7   median=      15.73   n=2
+  sortino_lowvol_off            -11.42 +/-     179.1   median=     -11.42   n=2
+  sortino_lowvol_on             -11.42 +/-     179.1   median=     -11.42   n=2
+  sortino_off                    2.155 +/-     24.68   median=      2.155   n=2
+  sortino_on                     2.155 +/-     24.68   median=      2.155   n=2
+
+
+AUROC vs 0.5 [full]: mean=0.539 test=wilcoxon p=0.5 (n=2)
+AUROC vs 0.5 [as]: mean=0.478 test=wilcoxon p=0.5 (n=2)

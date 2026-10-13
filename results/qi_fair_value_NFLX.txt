@@ -1,0 +1,9 @@
+QI fair-value calibration: 16 training days, 105879 obs, h = 100 messages
+  beta = 1.091 ticks per unit QI (95% day-bootstrap CI 0.969 to 1.226); corr 0.082
+  median spread 29.00 ticks; 1-tick spread share 0.00
+  QI [-1.0,-0.5)  n=  34251  mean mid move -0.918 ticks
+  QI [-0.5,+0.0)  n=  16059  mean mid move -0.303 ticks
+  QI [+0.0,+0.5)  n=  19153  mean mid move +0.160 ticks
+  QI [+0.5,+1.0)  n=  36416  mean mid move +0.840 ticks
+  rational quote shift under the forced bid-side spoof: +0.436 ticks (CI +0.387 to +0.490)
+  rational quote shift under the forced ask-side spoof: -0.480 ticks (CI -0.540 to -0.426)

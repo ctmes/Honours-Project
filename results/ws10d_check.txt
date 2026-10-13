@@ -1,0 +1,10 @@
+=== WS10 (Tier 4) pre-registered checks ===
+[WS10b shuffled-label head]
+  verdict: eval file lacks one of ('adversarial', 'detection_noobs', 'shuffled_noobs')
+[WS10d no-PCGrad head]
+  N_minus_B:sharpe_off             diff=+0.01367 p=0.00133 holm=0.00399
+  N_minus_B:inventory_sd_off       diff=+1.00441 p=3.81e-06 holm=1.53e-05
+  N_minus_G:sharpe_off             diff=-0.00421 p=0.0184 holm=0.0368
+  N_minus_G:inventory_sd_off       diff=+0.00639 p=0.981 holm=0.981
+  verdict: BOTH CONTRIBUTE: BCE alone helps, PCGrad adds to it
+[WS10c recurrent MM]

@@ -1,0 +1,74 @@
+*** EXPLORATORY — FORCED MAXIMAL ONE-SIDED ATTACK (side=bid, budget=1e+07). Not a co-trained adversary, not the confirmatory result. See docs/note_forced_attack_amendment.md ***
+
+=== per-arm means (forced vs off) ===
+[detection]
+  sharpe                     forced=    +21.34  off=     +21.6
+  sortino                    forced=    +55.68  off=    +56.03
+  cvar                       forced=    -6.906  off=    -6.876
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=     +1339  off=        +0
+  mean_ask_volume_injected   forced=        +0  off=        +0
+  qi_absmean                 forced=   +0.5521  off=   +0.5074
+  qi_mean                    forced=   +0.3947  off=  -0.02528
+  budget_final_frac          forced=    0.9314
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced=  +0.03113  off=  +0.03076
+  det_auroc_forced_vs_off    mean=    0.5165  (RC3; chance = 0.5)
+[full]
+  sharpe                     forced=    +18.35  off=    +18.19
+  sortino                    forced=    +51.24  off=    +50.94
+  cvar                       forced=    -8.514  off=    -8.537
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=     +1335  off=        +0
+  mean_ask_volume_injected   forced=        +0  off=        +0
+  qi_absmean                 forced=   +0.5535  off=   +0.5111
+  qi_mean                    forced=   +0.3939  off=  -0.02563
+  budget_final_frac          forced=    0.9316
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced=  +0.02998  off=   +0.0297
+  det_auroc_forced_vs_off    mean=     0.513  (RC3; chance = 0.5)
+[detection_noobs]
+  sharpe                     forced=    +19.24  off=    +20.59
+  sortino                    forced=    +51.04  off=    +53.13
+  cvar                       forced=    -8.609  off=    -8.511
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=     +1335  off=        +0
+  mean_ask_volume_injected   forced=        +0  off=        +0
+  qi_absmean                 forced=   +0.5533  off=   +0.5101
+  qi_mean                    forced=   +0.3945  off=  -0.02488
+  budget_final_frac          forced=    0.9316
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced=  +0.02887  off=  +0.02868
+  det_auroc_forced_vs_off    mean=    0.5073  (RC3; chance = 0.5)
+
+=== RC3: detection AUROC, forced vs off, vs chance 0.5 (unadjusted; Holm over arm x side is applied after both sides are run) ===
+  detection        n=20  mean=0.5165 d=+0.754 t         p=0.00321
+  full             n=20  mean=0.5130 d=+0.677 t         p=0.00692
+  detection_noobs  n=20  mean=0.5073 d=+0.293 t         p=0.206
+
+=== within-arm: forced vs off, paired by seed ===
+  detection        sharpe   n=20  diff=  -0.2526 d=-0.172 wilcoxon  p=0.334
+  detection        sortino  n=20  diff=  -0.3507 d=-0.179 paired_t  p=0.433
+  detection        cvar     n=20  diff= -0.02979 d=-0.152 wilcoxon  p=0.865
+  full             sharpe   n=20  diff=  +0.1534 d=+0.0515 wilcoxon  p=0.717
+  full             sortino  n=20  diff=   +0.303 d=+0.0654 wilcoxon  p=0.717
+  full             cvar     n=20  diff= +0.02293 d=+0.0633 wilcoxon  p=0.629
+  detection_noobs  sharpe   n=20  diff=   -1.345 d=-0.226 wilcoxon  p=0.554
+  detection_noobs  sortino  n=20  diff=   -2.096 d=-0.21 wilcoxon  p=0.619
+  detection_noobs  cvar     n=20  diff= -0.09881 d=-0.238 wilcoxon  p=0.535
+  (cross-arm DiD: python -m analysis.h1_attack_effect_check <out>.json --on-suffix _forced)
+
+--- reproduction check against results/eval_17313.json (off condition) ---
+  detection        sharpe_off         max|diff|=0  MATCH
+  detection        sortino_off        max|diff|=0  MATCH
+  detection        cvar_off           max|diff|=0  MATCH
+  detection        inventory_sd_off   max|diff|=0  MATCH
+  full             sharpe_off         max|diff|=0  MATCH
+  full             sortino_off        max|diff|=0  MATCH
+  full             cvar_off           max|diff|=0  MATCH
+  full             inventory_sd_off   max|diff|=0  MATCH
+  detection_noobs  sharpe_off         max|diff|=0  MATCH
+  detection_noobs  sortino_off        max|diff|=0  MATCH
+  detection_noobs  cvar_off           max|diff|=0  MATCH
+  detection_noobs  inventory_sd_off   max|diff|=0  MATCH
+  (DIFFERS is expected only if --n-envs / --n-steps / --step differ from the reference run; otherwise this loop is not faithful to rollout.run_rollout and no forced number should be trusted)

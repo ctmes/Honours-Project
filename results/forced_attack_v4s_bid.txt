@@ -1,0 +1,25 @@
+*** EXPLORATORY — FORCED MAXIMAL ONE-SIDED ATTACK (side=bid, budget=1e+07). Not a co-trained adversary, not the confirmatory result. See docs/note_forced_attack_amendment.md ***
+
+=== per-arm means (forced vs off) ===
+[scripted_detection]
+  sharpe                     forced=  -0.09628  off=    -1.761
+  sortino                    forced=    +25.76  off=    +23.12
+  cvar                       forced=    -5.452  off=    -5.401
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=     +1339  off=        +0
+  mean_ask_volume_injected   forced=        +0  off=        +0
+  qi_absmean                 forced=   +0.5522  off=   +0.5075
+  qi_mean                    forced=   +0.3952  off=  -0.02492
+  budget_final_frac          forced=    0.9315
+  budget_exhausted_frac      forced=         0
+  det_prob_mean              forced=   +0.6929  off=   +0.3974
+  det_auroc_forced_vs_off    mean=    0.8487  (RC3; chance = 0.5)
+
+=== RC3: detection AUROC, forced vs off, vs chance 0.5 (unadjusted; Holm over arm x side is applied after both sides are run) ===
+  scripted_detection n=20  mean=0.8487 d=+15.4 wilcoxon  p=1.91e-06
+
+=== within-arm: forced vs off, paired by seed ===
+  scripted_detection sharpe   n=20  diff=   +1.665 d=+0.148 wilcoxon  p=0.674
+  scripted_detection sortino  n=20  diff=   +2.641 d=+0.156 wilcoxon  p=0.596
+  scripted_detection cvar     n=20  diff= -0.05058 d=-0.121 wilcoxon  p=0.956
+  (cross-arm DiD: python -m analysis.h1_attack_effect_check <out>.json --on-suffix _forced)

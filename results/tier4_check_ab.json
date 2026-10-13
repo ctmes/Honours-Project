@@ -1,0 +1,168 @@
+{
+  "ws10a": {
+    "within_arm": {
+      "sharpe": {
+        "baseline": {
+          "n": 20,
+          "mean_diff": 0.0007831339105202812,
+          "bca_low": -0.00025288854601300206,
+          "bca_high": 0.0020045594554391837,
+          "p": 0.2187652587890625,
+          "p_holm": 0.6562957763671875
+        },
+        "adversarial": {
+          "n": 20,
+          "mean_diff": -0.0005646090374801717,
+          "bca_low": -0.0025934162550821905,
+          "bca_high": 0.00045430821770469347,
+          "p": 0.5273666381835938,
+          "p_holm": 1.0
+        },
+        "full": {
+          "n": 20,
+          "mean_diff": 6.416967000668903e-05,
+          "bca_low": -0.00019489967200531045,
+          "bca_high": 0.00031327643478732683,
+          "p": 0.6435470581054688,
+          "p_holm": 1.0
+        }
+      },
+      "sortino": {
+        "baseline": {
+          "n": 20,
+          "mean_diff": 0.0010655812394194976,
+          "bca_low": -0.0002954651544181088,
+          "bca_high": 0.002569733399323323,
+          "p": 0.1867656707763672,
+          "p_holm": 0.5602970123291016
+        },
+        "adversarial": {
+          "n": 20,
+          "mean_diff": -0.0009387546533856159,
+          "bca_low": -0.003242165766687981,
+          "bca_high": 0.0003717200462804626,
+          "p": 0.34243202209472656,
+          "p_holm": 0.6848640441894531
+        },
+        "full": {
+          "n": 20,
+          "mean_diff": 0.0001192226122352795,
+          "bca_low": -0.00024835096514716807,
+          "bca_high": 0.000502616432004942,
+          "p": 0.5563583374023438,
+          "p_holm": 0.6848640441894531
+        }
+      }
+    },
+    "did": {
+      "full_minus_baseline": {
+        "sharpe": {
+          "n": 20,
+          "mean_diff": -0.0007189642405135921,
+          "bca_low": -0.001933526350356877,
+          "bca_high": 0.0004200663720665163,
+          "p": 0.27469635009765625,
+          "p_holm": 0.5156898498535156
+        },
+        "sortino": {
+          "n": 20,
+          "mean_diff": -0.0009463586271842187,
+          "bca_low": -0.0024406470631634304,
+          "bca_high": 0.0005975935621976814,
+          "p": 0.2578449249267578,
+          "p_holm": 0.5156898498535156
+        }
+      }
+    },
+    "adversary": {
+      "baseline": {
+        "sidedness_mean": 0.2609398335245817,
+        "qi_shift_mean": -0.034407491798090196
+      },
+      "adversarial": {
+        "sidedness_mean": 0.21147306628650173,
+        "qi_shift_mean": 0.05387195677185881
+      },
+      "full": {
+        "sidedness_mean": 0.20689340644993073,
+        "qi_shift_mean": 0.0130077307916868
+      }
+    },
+    "baseline_degraded": false,
+    "verdict": "H1 PREMISE FAILS under the learned optimal attack: the undefended baseline is not significantly degraded (strongest null available)"
+  },
+  "ws10b": {
+    "tests": {
+      "H_minus_B:sharpe_off": {
+        "n": 20,
+        "mean_diff": 0.016952178362332454,
+        "bca_low": 0.01036209504862424,
+        "bca_high": 0.02964747522213914,
+        "p": 2.6702880859375e-05,
+        "p_holm": 8.0108642578125e-05
+      },
+      "H_minus_B:inventory_sd_off": {
+        "n": 20,
+        "mean_diff": 1.1546759015820218,
+        "bca_low": 0.870887886764351,
+        "bca_high": 1.8117391476748752,
+        "p": 1.9073486328125e-06,
+        "p_holm": 7.62939453125e-06
+      },
+      "H_minus_G:sharpe_off": {
+        "n": 20,
+        "mean_diff": -0.0009237239801842405,
+        "bca_low": -0.004456810452067777,
+        "bca_high": 0.0013561255195156908,
+        "p": 0.5536632537841797,
+        "p_holm": 1.0
+      },
+      "H_minus_G:inventory_sd_off": {
+        "n": 20,
+        "mean_diff": 0.1566505869755766,
+        "bca_low": -0.2672487347180027,
+        "bca_high": 0.7006556332841571,
+        "p": 0.5445537567138672,
+        "p_holm": 1.0
+      }
+    },
+    "verdict": "REGULARISATION: shuffled labels reproduce the auxiliary-loss benefit; label content is not needed"
+  },
+  "ws10c": {
+    "clean_performance": {},
+    "robustness_did": {
+      "bid:recurrent_baseline_minus_baseline": {
+        "n": 20,
+        "mean_diff": -0.00026888323579425346,
+        "bca_low": -0.004079065592006756,
+        "bca_high": 0.003522426198214234,
+        "p": 0.8926734924316406,
+        "p_holm": 1.0
+      },
+      "bid:recurrent_full_minus_full": {
+        "n": 20,
+        "mean_diff": -5.309285667183523e-05,
+        "bca_low": -0.0004958926706889916,
+        "bca_high": 0.0003329137857859134,
+        "p": 0.8105621337890625,
+        "p_holm": 1.0
+      },
+      "ask:recurrent_baseline_minus_baseline": {
+        "n": 20,
+        "mean_diff": -0.0002547742245440498,
+        "bca_low": -0.002947312701598775,
+        "bca_high": 0.0034803610800069897,
+        "p": 0.8829097747802734,
+        "p_holm": 1.0
+      },
+      "ask:recurrent_full_minus_full": {
+        "n": 20,
+        "mean_diff": 0.0004440489071693655,
+        "bca_low": -0.00018215427632592147,
+        "bca_high": 0.0018947152521656464,
+        "p": 0.43918609619140625,
+        "p_holm": 1.0
+      }
+    }
+  }
+}

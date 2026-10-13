@@ -1,0 +1,27 @@
+*** EXPLORATORY — FORCED ONE-SIDED ATTACK (side=bid, scale=1, inject_mult=1000), budget=1e+10. Not a co-trained adversary, not the confirmatory result. See docs/note_forced_attack_amendment.md and preregistration.json -> dose_response_amendment_2026-10-09 (DOSE-RESPONSE: inject_mult differs from the env's 2.0) ***
+
+=== per-arm means (forced vs off) ===
+[baseline]
+  sharpe                     forced=    -57.97  off=    -30.26
+  sortino                    forced=     -69.1  off=     -16.4
+  cvar                       forced=    -43.72  off=    -4.306
+  mean_attack_rate           forced=        +1  off=        +0
+  mean_bid_volume_injected   forced=+6.622e+05  off=        +0
+  mean_ask_volume_injected   forced=        +0  off=        +0
+  qi_absmean                 forced=   +0.9845  off=   +0.5073
+  qi_mean                    forced=   +0.9843  off=  -0.02437
+  budget_final_frac          forced=    0.9661
+  budget_exhausted_frac      forced=         0
+
+=== within-arm: forced vs off, paired by seed ===
+  baseline         sharpe   n=20  diff=   -27.71 d=-0.586 paired_t  p=0.0168
+  baseline         sortino  n=20  diff=    -52.7 d=-0.757 paired_t  p=0.0031
+  baseline         cvar     n=20  diff=   -39.41 d=-1.38 wilcoxon  p=1.91e-05
+  (cross-arm DiD: python -m analysis.h1_attack_effect_check <out>.json --on-suffix _forced)
+
+--- reproduction check against results/forced_attack_v4_bid.json (off condition) ---
+  baseline         sharpe_off         max|diff|=0  MATCH
+  baseline         sortino_off        max|diff|=0  MATCH
+  baseline         cvar_off           max|diff|=0  MATCH
+  baseline         inventory_sd_off   max|diff|=0  MATCH
+  (DIFFERS is expected only if --n-envs / --n-steps / --step differ from the reference run; otherwise this loop is not faithful to rollout.run_rollout and no forced number should be trusted)

@@ -1,0 +1,7 @@
+Shallow-book beta calibration (EXPLORATORY; shallow_book_beta_amendment_2026-10-09)
+stock    beta         beta CI   L1 sh   L1 $k  spread  shift bid  shift ask |S|/spread  verdict
+AMZN    0.278 [0.256,0.298]     162    30.0    2.00     +0.111     -0.122      0.061  IMMATERIAL
+BYND    0.398 [0.359,0.439]     514     3.6    1.00     +0.159     -0.175      0.175  IMMATERIAL
+ZM      0.236 [0.208,0.269]     146     9.0    2.00     +0.094     -0.104      0.052  IMMATERIAL
+INTC    0.454 [0.438,0.468]    2219    73.9    1.00     +0.182     -0.200      0.200  IMMATERIAL
+NFLX    1.091 [0.969,1.226]      51    31.9   29.00     +0.436     -0.480      0.017  BORDERLINE

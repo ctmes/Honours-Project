@@ -1,0 +1,76 @@
+*** ESTIMATION-ONLY (exploratory version, prereg not signed off, or partial run) ***
+
+=== per-arm summaries (mean +/- sd over seeds) ===
+[recurrent_baseline]
+  auroc                          0.499 +/-  0.007953   median=     0.4991   n=20
+  cvar_off                      -13.63 +/-     25.27   median=     -4.157   n=20
+  cvar_on                       -13.64 +/-     25.29   median=     -4.172   n=20
+  injected_volume_per_attack_off           0 +/-         0   median=          0   n=20
+  injected_volume_per_attack_on       15.51 +/-     29.25   median=      4.743   n=20
+  inventory_sd_off               1.612 +/-     1.849   median=     0.9568   n=20
+  inventory_sd_on                1.613 +/-     1.849   median=     0.9568   n=20
+  mean_ask_volume_injected_off           0 +/-         0   median=          0   n=20
+  mean_ask_volume_injected_on       2.909 +/-     3.943   median=      1.756   n=20
+  mean_attack_rate_off               0 +/-         0   median=          0   n=20
+  mean_attack_rate_on           0.9996 +/- 0.0002065   median=     0.9997   n=20
+  mean_bid_volume_injected_off           0 +/-         0   median=          0   n=20
+  mean_bid_volume_injected_on       12.59 +/-     26.92   median=      2.549   n=20
+  mean_injected_volume_off           0 +/-         0   median=          0   n=20
+  mean_injected_volume_on         15.5 +/-     29.25   median=       4.74   n=20
+  mean_injection_asymmetry_off         nan +/-       nan   median=        nan   n=0
+  mean_injection_asymmetry_on      0.5856 +/-   0.09823   median=     0.5362   n=20
+  peak_inventory_off             8.127 +/-        12   median=      3.664   n=20
+  peak_inventory_on              8.128 +/-        12   median=      3.664   n=20
+  quote_displacement_off         1.247 +/-    0.7934   median=      1.001   n=20
+  quote_displacement_on          1.247 +/-    0.7941   median=      1.001   n=20
+  quote_presence_off                 1 +/- 6.824e-06   median=          1   n=20
+  quote_presence_on                  1 +/- 6.824e-06   median=          1   n=20
+  regime_gap_off                 55.35 +/-     63.32   median=      29.03   n=20
+  regime_gap_on                  55.72 +/-     64.94   median=      24.63   n=20
+  sharpe_off                    -55.12 +/-     104.3   median=     -23.19   n=20
+  sharpe_on                     -54.84 +/-     104.2   median=     -23.19   n=20
+  sortino_highvol_off           -37.24 +/-       125   median=     -5.261   n=20
+  sortino_highvol_on            -36.88 +/-     124.2   median=     -5.246   n=20
+  sortino_lowvol_off            -75.88 +/-     159.5   median=     -13.21   n=20
+  sortino_lowvol_on             -75.56 +/-     160.9   median=     -13.21   n=20
+  sortino_off                   -53.56 +/-       134   median=     -17.23   n=20
+  sortino_on                    -53.23 +/-       134   median=     -17.22   n=20
+
+[recurrent_full]
+  auroc                         0.4969 +/-   0.01211   median=     0.4952   n=20
+  cvar_off                      -16.69 +/-     10.55   median=     -10.46   n=20
+  cvar_on                       -16.69 +/-     10.55   median=     -10.46   n=20
+  injected_volume_per_attack_off           0 +/-         0   median=          0   n=20
+  injected_volume_per_attack_on       15.03 +/-     28.13   median=        4.6   n=20
+  inventory_sd_off               3.818 +/-     2.388   median=      2.194   n=20
+  inventory_sd_on                3.818 +/-     2.388   median=      2.194   n=20
+  mean_ask_volume_injected_off           0 +/-         0   median=          0   n=20
+  mean_ask_volume_injected_on       2.859 +/-     3.881   median=      1.721   n=20
+  mean_attack_rate_off               0 +/-         0   median=          0   n=20
+  mean_attack_rate_on           0.9996 +/- 0.0002108   median=     0.9996   n=20
+  mean_bid_volume_injected_off           0 +/-         0   median=          0   n=20
+  mean_bid_volume_injected_on       12.17 +/-     25.77   median=      2.494   n=20
+  mean_injected_volume_off           0 +/-         0   median=          0   n=20
+  mean_injected_volume_on        15.03 +/-     28.12   median=      4.597   n=20
+  mean_injection_asymmetry_off         nan +/-       nan   median=        nan   n=0
+  mean_injection_asymmetry_on       0.597 +/-   0.09219   median=     0.5757   n=20
+  peak_inventory_off              12.9 +/-     7.817   median=      8.523   n=20
+  peak_inventory_on               12.9 +/-     7.817   median=      8.523   n=20
+  quote_displacement_off        0.8294 +/-   0.06544   median=     0.8133   n=20
+  quote_displacement_on         0.8294 +/-   0.06547   median=     0.8133   n=20
+  quote_presence_off                 1 +/- 3.208e-05   median=          1   n=20
+  quote_presence_on                  1 +/- 3.208e-05   median=          1   n=20
+  regime_gap_off                 61.35 +/-     41.57   median=      60.25   n=20
+  regime_gap_on                  61.41 +/-     41.54   median=      60.39   n=20
+  sharpe_off                     21.78 +/-     24.44   median=      28.25   n=20
+  sharpe_on                      21.76 +/-     24.41   median=      28.25   n=20
+  sortino_highvol_off            66.41 +/-     53.95   median=      82.89   n=20
+  sortino_highvol_on             66.35 +/-     53.94   median=      82.37   n=20
+  sortino_lowvol_off             28.43 +/-      45.2   median=      37.36   n=20
+  sortino_lowvol_on              28.42 +/-     45.21   median=      37.36   n=20
+  sortino_off                    51.24 +/-     39.16   median=      65.39   n=20
+  sortino_on                     51.21 +/-     39.13   median=      65.39   n=20
+
+
+AUROC vs 0.5 [recurrent_baseline]: mean=0.499 test=t p=0.589 (n=20)
+AUROC vs 0.5 [recurrent_full]: mean=0.497 test=t p=0.269 (n=20)

@@ -1,0 +1,9 @@
+=== RC3: detection AUROC, forced maximal one-sided vs clean ===
+  faithfulness vs existing forced grid: ALL MATCH
+  detection/bid          AUROC=0.5165 BCa=[0.5062, 0.5250] p=0.00321 p_holm=0.0192 p_sf=0.00421 det_prob forced/off=0.0311/0.0308  -> CANNOT DETECT
+  full/bid               AUROC=0.5130 BCa=[0.5051, 0.5213] p=0.00692 p_holm=0.0346 p_sf=0.00678 det_prob forced/off=0.0300/0.0297  -> CANNOT DETECT
+  detection_noobs/bid    AUROC=0.5073 BCa=[0.4968, 0.5180] p=0.206 p_holm=0.568 p_sf=0.207 det_prob forced/off=0.0289/0.0287  -> CANNOT DETECT
+  detection/ask          AUROC=0.5089 BCa=[0.5016, 0.5195] p=0.189 p_holm=0.568 p_sf=0.059 det_prob forced/off=0.0310/0.0308  -> CANNOT DETECT
+  full/ask               AUROC=0.5037 BCa=[0.4959, 0.5120] p=0.393 p_holm=0.568 p_sf=0.393 det_prob forced/off=0.0298/0.0297  -> CANNOT DETECT
+  detection_noobs/ask    AUROC=0.5129 BCa=[0.5029, 0.5225] p=0.021 p_holm=0.0841 p_sf=0.0218 det_prob forced/off=0.0289/0.0287  -> CANNOT DETECT
+  overall: CANNOT DETECT

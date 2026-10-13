@@ -1,0 +1,132 @@
+[
+  {
+    "stock": "AMZN",
+    "days": 16,
+    "n_obs": 560019,
+    "beta": 0.2783141794158642,
+    "beta_ci": [
+      0.25631817298508847,
+      0.2982208062504971
+    ],
+    "median_l1_depth_shares": 161.75,
+    "median_l1_depth_usd": 30044.5875,
+    "median_spread_ticks": 2.0,
+    "one_tick_spread_share": 0.48370858845860587,
+    "shift_bid_ticks": 0.1113256717663457,
+    "shift_ask_ticks": -0.12245823894298026,
+    "shift_ci_bid": [
+      0.10252726919403539,
+      0.11928832250019883
+    ],
+    "shift_ci_ask": [
+      -0.13121715475021872,
+      -0.11277999611343893
+    ],
+    "max_abs_shift_frac_of_spread": 0.06122911947149013,
+    "verdict": "IMMATERIAL"
+  },
+  {
+    "stock": "BYND",
+    "days": 16,
+    "n_obs": 15528,
+    "beta": 0.3981820244210458,
+    "beta_ci": [
+      0.358907756820585,
+      0.43927420291668523
+    ],
+    "median_l1_depth_shares": 513.75,
+    "median_l1_depth_usd": 3553.065625,
+    "median_spread_ticks": 1.0,
+    "one_tick_spread_share": 0.8104714064914992,
+    "shift_bid_ticks": 0.15927280976841832,
+    "shift_ask_ticks": -0.17520009074526013,
+    "shift_ci_bid": [
+      0.143563102728234,
+      0.1757096811666741
+    ],
+    "shift_ci_ask": [
+      -0.19328064928334152,
+      -0.1579194130010574
+    ],
+    "max_abs_shift_frac_of_spread": 0.17520009074526013,
+    "verdict": "IMMATERIAL"
+  },
+  {
+    "stock": "ZM",
+    "days": 16,
+    "n_obs": 72204,
+    "beta": 0.23617834009092484,
+    "beta_ci": [
+      0.2084273674664814,
+      0.26863712020604497
+    ],
+    "median_l1_depth_shares": 145.75,
+    "median_l1_depth_usd": 9004.130000000001,
+    "median_spread_ticks": 2.0,
+    "one_tick_spread_share": 0.24785330452606505,
+    "shift_bid_ticks": 0.09447133603636994,
+    "shift_ask_ticks": -0.10391846964000694,
+    "shift_ci_bid": [
+      0.08337094698659257,
+      0.107454848082418
+    ],
+    "shift_ci_ask": [
+      -0.11820033289065979,
+      -0.09170804168525182
+    ],
+    "max_abs_shift_frac_of_spread": 0.05195923482000347,
+    "verdict": "IMMATERIAL"
+  },
+  {
+    "stock": "INTC",
+    "days": 16,
+    "n_obs": 147730,
+    "beta": 0.4539241428651736,
+    "beta_ci": [
+      0.4382284666703089,
+      0.46840993654102003
+    ],
+    "median_l1_depth_shares": 2218.75,
+    "median_l1_depth_usd": 73919.38625000001,
+    "median_spread_ticks": 1.0,
+    "one_tick_spread_share": 0.8664793880728355,
+    "shift_bid_ticks": 0.18156965714606943,
+    "shift_ask_ticks": -0.19972662286067638,
+    "shift_ci_bid": [
+      0.17529138666812358,
+      0.18736397461640802
+    ],
+    "shift_ci_ask": [
+      -0.20610037207804882,
+      -0.1928205253349359
+    ],
+    "max_abs_shift_frac_of_spread": 0.19972662286067638,
+    "verdict": "IMMATERIAL"
+  },
+  {
+    "stock": "NFLX",
+    "days": 16,
+    "n_obs": 105879,
+    "beta": 1.0905345668233797,
+    "beta_ci": [
+      0.9686438833863118,
+      1.2262383896323878
+    ],
+    "median_l1_depth_shares": 51.25,
+    "median_l1_depth_usd": 31911.23625,
+    "median_spread_ticks": 29.0,
+    "one_tick_spread_share": 0.0008500269175190548,
+    "shift_bid_ticks": 0.4362138267293519,
+    "shift_ask_ticks": -0.4798352094022871,
+    "shift_ci_bid": [
+      0.38745755335452475,
+      0.4904953558529552
+    ],
+    "shift_ci_ask": [
+      -0.5395448914382507,
+      -0.4262033086899772
+    ],
+    "max_abs_shift_frac_of_spread": 0.01654604170352714,
+    "verdict": "BORDERLINE"
+  }
+]

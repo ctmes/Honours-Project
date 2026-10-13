@@ -88,7 +88,94 @@ def test_budget_override_rejects_non_positive():
 
 def test_force_action_rejects_unknown_side():
     with pytest.raises(ValueError):
-        force_action("both", 5)
+        force_action("sideways", 5)
+
+
+# ---------------------------------------------------------------------------
+# H3m generalisation (h3m_generalisation_amendment_2026-10-06): attacks OUTSIDE the
+# scripted one-sided training family -- symmetric, or below its 0.25 magnitude floor.
+
+
+def test_symmetric_forced_action_injects_both_sides_equally(agent):
+    vol = agent.action_to_injection(force_action("both", 5), _world_state(50),
+                                    jnp.float32(1e9), gate=jnp.float32(1.0))
+    assert float(jnp.min(vol)) == pytest.approx(2.0 * 50)
+    assert float(jnp.max(vol)) == pytest.approx(2.0 * 50)
+
+
+def test_symmetric_injection_leaves_queue_imbalance_unchanged(agent):
+    """The point of the symmetric condition: it is a material injection that carries
+    no directional signal, so a head keyed on imbalance alone cannot see it."""
+    vol = agent.action_to_injection(force_action("both", 5), _world_state(50),
+                                    jnp.float32(1e9), gate=jnp.float32(1.0))
+    bid, ask = vol[:5], vol[5:]
+    assert float(jnp.sum(bid)) == pytest.approx(float(jnp.sum(ask)))
+
+
+@pytest.mark.parametrize("scale", [0.1, 0.25, 0.5, 1.0])
+def test_inject_scale_scales_the_injection_linearly(agent, scale):
+    vol = agent.action_to_injection(force_action("bid", 5, scale), _world_state(50),
+                                    jnp.float32(1e9), gate=jnp.float32(1.0))
+    assert float(jnp.min(vol[:5])) == pytest.approx(2.0 * 50 * scale, rel=1e-5)
+    assert float(jnp.max(vol[5:])) == 0.0
+
+
+@pytest.mark.parametrize("bad", [0.0, -0.5, 1.5])
+def test_force_action_rejects_out_of_range_scale(bad):
+    with pytest.raises(ValueError):
+        force_action("bid", 5, bad)
+
+
+# ---------------------------------------------------------------------------
+# Dose-response (dose_response_amendment_2026-10-09): inject_mult above the env's 2.0.
+
+
+def test_inject_mult_override_sets_the_value():
+    from eval_forced_attack import set_inject_mult
+    cfg = {"dict_of_agents_configs": {"Spoofing": {"inject_mult": 2.0}}}
+    set_inject_mult(cfg, 1000)
+    assert cfg["dict_of_agents_configs"]["Spoofing"]["inject_mult"] == 1000.0
+
+
+@pytest.mark.parametrize("bad", [0.0, -2.0])
+def test_inject_mult_override_rejects_non_positive(bad):
+    from eval_forced_attack import set_inject_mult
+    with pytest.raises(ValueError):
+        set_inject_mult({"dict_of_agents_configs": {"Spoofing": {}}}, bad)
+
+
+@pytest.mark.parametrize("mult", [2.0, 10.0, 1000.0])
+def test_injection_scales_linearly_with_inject_mult(mult):
+    """The ladder only means something if a bigger inject_mult is a bigger spoof, one
+    side only, and a 1e10 budget never binds even at the top rung."""
+    agent = SpoofingAgent(cfg=SpoofingAgentConfig(n_spoof_levels=5, inject_mult=mult),
+                          world_config=World_EnvironmentConfig())
+    vol = agent.action_to_injection(force_action("bid", 5), _world_state(50),
+                                    jnp.float32(1e10), gate=jnp.float32(1.0))
+    assert float(jnp.min(vol[:5])) == pytest.approx(mult * 50, rel=1e-5)
+    assert float(jnp.max(vol[5:])) == 0.0
+
+
+def test_condition_label_distinguishes_out_of_family_runs():
+    from analysis.h3_material_check import condition_label
+    assert condition_label({"_meta": {"side": "bid", "inject_scale": 1.0}}, "x") == "bid"
+    assert condition_label({"_meta": {"side": "both", "inject_scale": 1.0}}, "x") == "both"
+    assert condition_label({"_meta": {"side": "bid", "inject_scale": 0.1}}, "x") == "bid@0.1"
+    # a pre-generalisation file has no inject_scale and must keep its old label
+    assert condition_label({"_meta": {"side": "ask"}}, "x") == "ask"
+    assert condition_label({}, "bid") == "bid"
+
+
+def test_two_files_describing_the_same_condition_are_refused(tmp_path):
+    import json
+    from analysis.h3_material_check import run
+    doc = {"per_seed": {"scripted_detection": {"det_auroc_forced_vs_off": [0.5] * 20}},
+           "_meta": {"side": "both", "inject_scale": 1.0}}
+    p1, p2 = tmp_path / "a.json", tmp_path / "b.json"
+    for p in (p1, p2):
+        p.write_text(json.dumps(doc))
+    with pytest.raises(SystemExit, match="same condition"):
+        run(str(p1), str(p2), None, None)
 
 
 # ---------------------------------------------------------------------------

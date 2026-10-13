@@ -1,0 +1,397 @@
+{
+  "cells": {
+    "detection/bid": {
+      "arm": "detection",
+      "side": "bid",
+      "n": 20,
+      "mean": 0.5164735563823409,
+      "bca_low": 0.5061801955985094,
+      "bca_high": 0.5250032420904046,
+      "test": "t",
+      "p": 0.003206317549070554,
+      "p_sign_flip": 0.004207611083984375,
+      "cohens_d": 0.7538314628630446,
+      "det_prob_mean_forced": 0.031127292942255736,
+      "det_prob_mean_off": 0.030759735126048328,
+      "p_holm": 0.019237905294423326,
+      "verdict": "CANNOT DETECT"
+    },
+    "full/bid": {
+      "arm": "full",
+      "side": "bid",
+      "n": 20,
+      "mean": 0.5130224468755326,
+      "bca_low": 0.5051340099266035,
+      "bca_high": 0.5213180877590938,
+      "test": "t",
+      "p": 0.006915768540663599,
+      "p_sign_flip": 0.0067806243896484375,
+      "cohens_d": 0.6771250385491268,
+      "det_prob_mean_forced": 0.029976356634870173,
+      "det_prob_mean_off": 0.029701322549954057,
+      "p_holm": 0.03457884270331799,
+      "verdict": "CANNOT DETECT"
+    },
+    "detection_noobs/bid": {
+      "arm": "detection_noobs",
+      "side": "bid",
+      "n": 20,
+      "mean": 0.5072837229016912,
+      "bca_low": 0.496790507633841,
+      "bca_high": 0.5179886995021361,
+      "test": "t",
+      "p": 0.20609861688504286,
+      "p_sign_flip": 0.20689773559570312,
+      "cohens_d": 0.29273308231912704,
+      "det_prob_mean_forced": 0.028871460538357496,
+      "det_prob_mean_off": 0.0286795056425035,
+      "p_holm": 0.5680446624755859,
+      "verdict": "CANNOT DETECT"
+    },
+    "detection/ask": {
+      "arm": "detection",
+      "side": "ask",
+      "n": 20,
+      "mean": 0.5089084322883206,
+      "bca_low": 0.50156220011259,
+      "bca_high": 0.5194708367371383,
+      "test": "wilcoxon",
+      "p": 0.1893482208251953,
+      "p_sign_flip": 0.05902671813964844,
+      "cohens_d": 0.4428729955941821,
+      "det_prob_mean_forced": 0.030962230544537304,
+      "det_prob_mean_off": 0.030759735126048328,
+      "p_holm": 0.5680446624755859,
+      "verdict": "CANNOT DETECT"
+    },
+    "full/ask": {
+      "arm": "full",
+      "side": "ask",
+      "n": 20,
+      "mean": 0.5036947054409388,
+      "bca_low": 0.49590867146402323,
+      "bca_high": 0.5119887869998819,
+      "test": "t",
+      "p": 0.3929071804031472,
+      "p_sign_flip": 0.3928375244140625,
+      "cohens_d": 0.19548475145668306,
+      "det_prob_mean_forced": 0.02978454725816846,
+      "det_prob_mean_off": 0.029701322549954057,
+      "p_holm": 0.5680446624755859,
+      "verdict": "CANNOT DETECT"
+    },
+    "detection_noobs/ask": {
+      "arm": "detection_noobs",
+      "side": "ask",
+      "n": 20,
+      "mean": 0.5128652538541908,
+      "bca_low": 0.5028712718891317,
+      "bca_high": 0.5224546059229266,
+      "test": "t",
+      "p": 0.021029203143780987,
+      "p_sign_flip": 0.02176666259765625,
+      "cohens_d": 0.5625415004655278,
+      "det_prob_mean_forced": 0.028948862198740245,
+      "det_prob_mean_off": 0.0286795056425035,
+      "p_holm": 0.08411681257512395,
+      "verdict": "CANNOT DETECT"
+    }
+  },
+  "overall": "CANNOT DETECT",
+  "faithfulness": {
+    "bid": [
+      {
+        "arm": "detection",
+        "metric": "sharpe_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "sharpe_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "sortino_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "sortino_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "cvar_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "cvar_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "inventory_sd_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "qi_mean_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sharpe_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sharpe_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sortino_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sortino_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "cvar_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "cvar_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "inventory_sd_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "qi_mean_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sharpe_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sharpe_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sortino_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sortino_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "cvar_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "cvar_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "inventory_sd_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "qi_mean_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      }
+    ],
+    "ask": [
+      {
+        "arm": "detection",
+        "metric": "sharpe_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "sharpe_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "sortino_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "sortino_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "cvar_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "cvar_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "inventory_sd_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection",
+        "metric": "qi_mean_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sharpe_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sharpe_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sortino_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "sortino_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "cvar_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "cvar_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "inventory_sd_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "full",
+        "metric": "qi_mean_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sharpe_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sharpe_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sortino_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "sortino_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "cvar_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "cvar_off",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "inventory_sd_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      },
+      {
+        "arm": "detection_noobs",
+        "metric": "qi_mean_forced",
+        "max_abs_diff": 0.0,
+        "match": true
+      }
+    ]
+  },
+  "all_faithful": true,
+  "rule": "mean>=0.60 & Holm p<0.05 -> DETECTS; CI in [0.45,0.55] -> CANNOT DETECT; else INCONCLUSIVE; Holm over 6 arm x side cells"
+}

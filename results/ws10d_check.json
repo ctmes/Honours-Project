@@ -1,0 +1,50 @@
+{
+  "ws10b": {
+    "skipped": "eval file lacks one of ('adversarial', 'detection_noobs', 'shuffled_noobs')"
+  },
+  "ws10d": {
+    "tests": {
+      "N_minus_B:sharpe_off": {
+        "n": 20,
+        "mean_diff": 0.013670361980826102,
+        "bca_low": 0.007070997109381925,
+        "bca_high": 0.024655264585453047,
+        "p": 0.001331329345703125,
+        "p_holm": 0.003993988037109375
+      },
+      "N_minus_B:inventory_sd_off": {
+        "n": 20,
+        "mean_diff": 1.0044138421513147,
+        "bca_low": 0.6862213772734446,
+        "bca_high": 1.4931898121046892,
+        "p": 3.814697265625e-06,
+        "p_holm": 1.52587890625e-05
+      },
+      "N_minus_G:sharpe_off": {
+        "n": 20,
+        "mean_diff": -0.004205540361690592,
+        "bca_low": -0.008613989557084268,
+        "bca_high": -0.0015401673194418105,
+        "p": 0.018421173095703125,
+        "p_holm": 0.03684234619140625
+      },
+      "N_minus_G:inventory_sd_off": {
+        "n": 20,
+        "mean_diff": 0.0063885275448690715,
+        "bca_low": -0.43244008653428556,
+        "bca_high": 0.5634768351240281,
+        "p": 0.9813442230224609,
+        "p_holm": 0.9813442230224609
+      }
+    },
+    "verdict": "BOTH CONTRIBUTE: BCE alone helps, PCGrad adds to it",
+    "reference_source": {
+      "adversarial": "--mlp-ref",
+      "detection_noobs": "--mlp-ref"
+    }
+  },
+  "ws10c": {
+    "clean_performance": {},
+    "robustness_did": {}
+  }
+}

@@ -1,0 +1,5 @@
+*** ESTIMATION-ONLY (preregistration not signed off, or partial run) ***
+
+
+AUROC vs 0.5 [full]: mean=0.514 test=none p=nan (n=1)
+AUROC vs 0.5 [as]: mean=0.486 test=none p=nan (n=1)

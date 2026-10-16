@@ -130,3 +130,11 @@ report/
 
 # Thesis analysis package (figures/tables from eval JSON) - kept out of git
 analysis/
+
+# AI assistant tooling and local config - never commit
+.claude/
+.agents/
+skills-lock.json
+CLAUDE.md
+AGENTS.md
+*.kaya-orig
